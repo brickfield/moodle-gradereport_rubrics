@@ -44,5 +44,5 @@ $string['rubrics:view'] = 'Can view the Rubrics report';
 $string['selectassignment'] = 'Select assignment';
 $string['student'] = 'Student';
 $string['studentemail'] = 'Email';
-$string['studentid'] = 'ID';
+$string['studentid'] = 'ID Number';
 $string['summary'] = 'Summary';
