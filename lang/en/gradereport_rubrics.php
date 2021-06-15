@@ -46,3 +46,4 @@ $string['student'] = 'Student';
 $string['studentemail'] = 'Email';
 $string['studentid'] = 'ID Number';
 $string['summary'] = 'Summary';
+$string['html_warning'] = 'Please note - for readability, any feedback content in the downloaded files has its HTML tags removed.';

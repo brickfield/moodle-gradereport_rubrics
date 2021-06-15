@@ -114,7 +114,7 @@ class grade_report_rubrics extends grade_report {
                 "displayidnumber={$this->displayidnumber}&amp;format=";
 
             if ((!$this->csv)) {
-                $output = '<ul class="rubrics-actions"><li><a href="'.$linkurl.'csv">'.
+                $output = get_string('html_warning', 'gradereport_rubrics').'<br/>'.'<ul class="rubrics-actions"><li><a href="'.$linkurl.'csv">'.
                     get_string('csvdownload', 'gradereport_rubrics').'</a></li>
                     <li><a href="'.$linkurl.'excelcsv">'.
                     get_string('excelcsvdownload', 'gradereport_rubrics').'</a></li></ul>';
@@ -251,7 +251,7 @@ class grade_report_rubrics extends grade_report {
 
             if ($this->displayremark) {
                 $cell = new html_table_cell();
-                if (is_object($values[3])) { $cell->text = $values[3]->feedback; } // Feedback cell.
+                if (is_object($values[3])) { $cell->text = strip_tags($values[3]->feedback); } // Feedback cell.
                 if (empty($cell->text)) {
                     $cell->text = get_string('nograde', 'gradereport_rubrics');
                 }
