@@ -1,5 +1,5 @@
 <?php
-// This file is part of Moodle - http://moodle.org/
+// This file is part of the gradereport markingguide plugin
 //
 // Moodle is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,15 +13,24 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+namespace gradereport_rubrics;
+use core_text;
 
 /**
+ * Provides CSV functionality.
  *
- * @package    grade_report_rubrics
- * @copyright  2018 Learning Technology Services, www.lts.ie - Lead Developer: Karen Holland
+ * @package    gradereport_rubric
+ * @copyright  2021 onward Brickfield Education Labs Ltd, https://www.brickfield.ie
+ * @author     2021 Karen Holland <karen@brickfieldlabs.ie>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-defined('MOODLE_INTERNAL') || die();
+class csv {
 
-$plugin->version = 2021060200;
-$plugin->requires = 2018051700; // Moodle 3.5.
-$plugin->component = 'gradereport_rubrics';
+    public function csv_quote($value, $excel) {
+        if ($excel) {
+            return core_text::convert('"'.str_replace('"', "'", $value).'"', 'UTF-8', 'UTF-16LE');
+        } else {
+            return '"'.str_replace('"', "'", $value).'"';
+        }
+    }
+}

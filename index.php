@@ -23,8 +23,8 @@
 
 require_once('../../../config.php');
 require_once($CFG->libdir .'/gradelib.php');
-require_once($CFG->dirroot.'/grade/lib.php');
-require_once($CFG->dirroot.'/grade/report/rubrics/lib.php');
+require_once $CFG->dirroot.'/grade/lib.php';
+use gradereport_rubrics\report;
 require_once("select_form.php");
 
 $assignmentid = optional_param('assignmentid', 0, PARAM_INT);
@@ -37,7 +37,7 @@ $format = optional_param('format', '', PARAM_ALPHA);
 $courseid = required_param('id', PARAM_INT);// Course id.
 
 if (!$course = $DB->get_record('course', array('id' => $courseid))) {
-    print_error('invalidcourseid');
+    throw new moodle_exception(get_string('invalidcourseid', 'gradereport_rubrics'));
 }
 
 // CSV format.
@@ -68,7 +68,7 @@ if ($formdata = $mform->get_data()) {
     $assignmentid = $formdata->assignmentid;
 }
 
-if ($assignmentid!=0) {
+if ($assignmentid != 0) {
     $assignment = $DB->get_record_sql('SELECT name FROM {assign} WHERE id = ? limit 1', array($assignmentid));
     $assignmentname = format_string($assignment->name, true, array('context' => $context));
 }
@@ -86,7 +86,7 @@ if (!$csv) {
 
 $gpr = new grade_plugin_return(array('type' => 'report', 'plugin' => 'grader',
     'courseid' => $courseid)); // Return tracking object.
-$report = new grade_report_rubrics($courseid, $gpr, $context); // Initialise the grader report object.
+$report = new report($courseid, $gpr, $context); // Initialise the grader report object.
 $report->assignmentid = $assignmentid;
 $report->format = $format;
 $report->excel = $format == 'excelcsv';
@@ -98,6 +98,7 @@ $report->displayidnumber = ($displayidnumber == 1);
 $report->displayemail = ($displayemail == 1);
 $report->assignmentname = $assignmentname;
 
-$report->show();
+$table = $report->show();
+echo $table;
 
 echo $OUTPUT->footer();

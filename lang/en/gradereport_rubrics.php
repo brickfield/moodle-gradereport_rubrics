@@ -35,6 +35,7 @@ $string['err_noassignments'] = 'No relevant assignments have been found';
 $string['excelcsvdownload'] = 'Download in Excel-compatible format (.xlsx)';
 $string['feedback'] = 'Feedback';
 $string['grade'] = 'Grade';
+$string['invalidcourseid'] = 'Invalid courseid';
 $string['nograde'] = '-';
 $string['pluginname'] = 'Rubrics report';
 $string['pluginname_help'] = 'This report displays the Rubrics grading details per student. Tick or untick options to customise the HTML or downloadable results';
