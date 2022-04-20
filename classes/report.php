@@ -305,7 +305,8 @@ class report extends grade_report {
                         " points</div>";
                     $csvtext = round($rubricarray[$value->criterionid][$value->levelid]->score, 2)." points - ";
                     if ($this->displaylevel) {
-                        $cell->text .= "<div class=\"rubrics_level\">".$rubricarray[$value->criterionid][$value->levelid]->definition."</div>";
+                        $cell->text .= "<div class=\"rubrics_level\">".
+                        $rubricarray[$value->criterionid][$value->levelid]->definition."</div>";
                         $csvtext .= $rubricarray[$value->criterionid][$value->levelid]->definition." - ";
                     }
                     if ($this->displayremark) {
@@ -328,7 +329,9 @@ class report extends grade_report {
 
             if ($this->displayremark) {
                 $cell = new html_table_cell();
-                if (is_object($values[3])) { $cell->text = $values[3]->feedback; } // Feedback cell.
+                if (is_object($values[3])) {
+                    $cell->text = $values[3]->feedback;
+                } // Feedback cell.
                 if (empty($cell->text)) {
                     $cell->text = get_string('nograde', 'gradereport_rubrics');
                 }
