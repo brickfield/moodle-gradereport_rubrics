@@ -42,13 +42,10 @@ Feature: Selecting an assignment option for a rubrics report
       | Criterion 1 | Level 11 | 1  | Level 12 | 20 | Level 13 | 40 | Level 14  | 50  |
       | Criterion 2 | Level 21 | 10 | Level 22 | 20 | Level 23 | 30 |           |     |
       | Criterion 3 | Level 31 | 5  | Level 32 | 20 |          |    |           |     |
-    And I press "Save as draft"
-    And I wait "2" seconds
-    And I go to "Test assignment 1 name" advanced grading definition page
-    And I click on "Move down" "button" in the "Criterion 1" "table_row"
     And I press "Save rubric and make it ready"
     Then I should see "Ready for use"
     # Grading two students.
+    And I am on the "Test assignment 1 name" "assign activity" page
     And I wait "2" seconds
     And I go to "Student 1" "Test assignment 1 name" activity advanced grading page
     And I grade by filling the rubric with:
