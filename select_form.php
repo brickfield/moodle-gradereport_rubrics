@@ -15,16 +15,24 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- *
- * @package    report_rubrics
+ * Describes the select form for generating a rubics report
+ * @package    gradereport_rubrics
  * @copyright  2014 Learning Technology Services, www.lts.ie - Lead Developer: Karen Holland
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 defined('MOODLE_INTERNAL') || die();
 require_once("$CFG->libdir/formslib.php");
 
+/**
+ * Generate the selection form for the rubrics report
+ */
 class report_rubrics_select_form extends moodleform {
 
+    /**
+     * Define the values in the form
+     *
+     * @return void
+     */
     public function definition() {
         global $CFG, $DB;
 

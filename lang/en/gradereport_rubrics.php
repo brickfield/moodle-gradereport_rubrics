@@ -15,8 +15,8 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- *
- * @package    grade_report_rubrics
+ *  Language strings for the rubrics report
+ * @package    gradereport_rubrics
  * @copyright  2014 Learning Technology Services, www.lts.ie - Lead Developer: Karen Holland
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */

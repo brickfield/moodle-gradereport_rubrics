@@ -15,15 +15,15 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- *
- * @package    grade_report_rubrics
+ * Gradebook rubrics report
+ * @package    gradereport_rubrics
  * @copyright  2014 Learning Technology Services, www.lts.ie - Lead Developer: Karen Holland
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 require_once('../../../config.php');
 require_once($CFG->libdir .'/gradelib.php');
-require_once $CFG->dirroot.'/grade/lib.php';
+require_once($CFG->dirroot.'/grade/lib.php');
 use gradereport_rubrics\report;
 require_once("select_form.php");
 

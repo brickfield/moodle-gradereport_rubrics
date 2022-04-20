@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Defines {@link \gradereport_rubrics\privacy\provider} class.
+ * Defines rubrics report privacy\provider class.
  *
  * @package    gradereport_rubrics
  * @category   privacy

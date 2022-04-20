@@ -15,24 +15,23 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- *
- * @package    grade_report_rubrics
+ *  Describe the capabilities for the plugin
+ * @package    gradereport_rubrics
  * @copyright  2014 Learning Technology Services, www.lts.ie - Lead Developer: Karen Holland
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 defined('MOODLE_INTERNAL') || die();
-$capabilities = array(
+$capabilities = [
 
-    'gradereport/rubrics:view' => array(
+    'gradereport/rubrics:view' => [
         'riskbitmask' => '',
         'captype' => 'read',
         'contextlevel' => CONTEXT_COURSE,
-        'archetypes' => array(
+        'archetypes' => [
             'student' => CAP_PREVENT,
             'teacher' => CAP_ALLOW,
             'editingteacher' => CAP_ALLOW,
             'manager' => CAP_ALLOW
-        )
-    ),
-
-);
+        ]
+    ],
+];

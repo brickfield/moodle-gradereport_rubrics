@@ -32,15 +32,28 @@ require_once($CFG->dirroot.'/grade/report/lib.php');
 /**
  * Provides rubric report render functionality.
  *
- * @package    gradereport_rubric
+ * @package    gradereport_rubrics
  * @copyright  2021 onward Brickfield Education Labs Ltd, https://www.brickfield.ie
  * @author     2021 Clayton Darlington <clayton@brickfieldlabs.ie>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report extends grade_report {
 
+    /**
+     * Hold the contructed report for display
+     *
+     * @var mixed
+     */
     public $output;
 
+    /**
+     * Initalize a report object
+     *
+     * @param int $courseid
+     * @param object $gpr
+     * @param string $context
+     * @param int|null $page
+     */
     public function __construct($courseid, $gpr, $context, $page=null) {
         parent::__construct($courseid, $gpr, $context, $page);
         $this->course_grade_item = grade_item::fetch_course_item($this->courseid);
@@ -138,7 +151,7 @@ class report extends grade_report {
             $output = get_string('err_norecords', 'gradereport_rubrics');
         } else {
 
-            $csvlink = new moodle_url('/grade/report/rubric/index.php', [
+            $csvlink = new moodle_url('/grade/report/rubrics/index.php', [
                 'id' => $this->course->id,
                 'assignmentid' => $this->assignmentid,
                 'displaylevl' => $this->displaylevel,
@@ -149,7 +162,7 @@ class report extends grade_report {
                 'format' => 'csv',
             ]);
 
-            $xlsxlink = new moodle_url('/grade/report/rubric/index.php', [
+            $xlsxlink = new moodle_url('/grade/report/rubrics/index.php', [
                 'id' => $this->course->id,
                 'assignmentid' => $this->assignmentid,
                 'displaylevl' => $this->displaylevel,
@@ -160,7 +173,8 @@ class report extends grade_report {
                 'format' => 'excelcsv',
             ]);
             // Links for download.
-            if ((!$this->csv)) {$output .= html_writer::start_tag('ul', ['class' => 'rubrics-actions']);
+            if ((!$this->csv)) {
+                $output .= html_writer::start_tag('ul', ['class' => 'rubrics-actions']);
                 $output .= html_writer::start_tag('li');
                 $output .= html_writer::link($csvlink, get_string('csvdownload', 'gradereport_rubrics'));
                 $output .= html_writer::end_tag('il');
@@ -247,7 +261,9 @@ class report extends grade_report {
         foreach ($rubricarray as $key => $value) {
             $table->head[] = $rubricarray[$key]['crit_desc'];
         }
-        if ($this->displayremark) { $table->head[] = get_string('feedback', 'gradereport_rubrics'); }
+        if ($this->displayremark) {
+            $table->head[] = get_string('feedback', 'gradereport_rubrics');
+        }
         $table->head[] = get_string('grade', 'gradereport_rubrics');
         $csvarray[] = $table->head;
         $table->data = [];
@@ -282,9 +298,11 @@ class report extends grade_report {
                 }
             }
             foreach ($values[2] as $value) {
-                if(is_object($value)) {
+                if (is_object($value)) {
                     $cell = new html_table_cell();
-                    $cell->text = "<div class=\"rubrics_points\">".round($rubricarray[$value->criterionid][$value->levelid]->score, 2)." points</div>";
+                    $cell->text = "<div class=\"rubrics_points\">".
+                        round($rubricarray[$value->criterionid][$value->levelid]->score, 2).
+                        " points</div>";
                     $csvtext = round($rubricarray[$value->criterionid][$value->levelid]->score, 2)." points - ";
                     if ($this->displaylevel) {
                         $cell->text .= "<div class=\"rubrics_level\">".$rubricarray[$value->criterionid][$value->levelid]->definition."</div>";
@@ -306,7 +324,6 @@ class report extends grade_report {
 
                     $csvrow[] = $csvtext;
                 }
-
             }
 
             if ($this->displayremark) {
