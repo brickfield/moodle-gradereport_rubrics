@@ -60,5 +60,5 @@ Feature: Selecting an assignment option for a rubrics report
     And I am on "Course 1" course homepage
     When I navigate to "View > Rubrics report" in the course gradebook
     And I set the field "Select assignment" to "Test assignment 1 name"
-    And I press "Go"
+    And I press "Submit"
     Then "Student 1" row "Grade" column of "generaltable" should contain "65"

@@ -84,7 +84,7 @@ class report extends grade_report {
      * @return void
      */
     public function show() {
-        global $DB, $CFG;
+        global $DB, $CFG, $OUTPUT;
 
         $output = "";
         $assignmentid = $this->assignmentid;
@@ -177,9 +177,11 @@ class report extends grade_report {
                 $output .= html_writer::start_tag('ul', ['class' => 'rubrics-actions']);
                 $output .= html_writer::start_tag('li');
                 $output .= html_writer::link($csvlink, get_string('csvdownload', 'gradereport_rubrics'));
+                $output .= '&nbsp;' . $OUTPUT->help_icon('download', 'gradereport_rubrics');
                 $output .= html_writer::end_tag('il');
                 $output .= html_writer::start_tag('li');
                 $output .= html_writer::link($xlsxlink, get_string('excelcsvdownload', 'gradereport_rubrics'));
+                $output .= '&nbsp;' . $OUTPUT->help_icon('download', 'gradereport_rubrics');
                 $output .= html_writer::end_tag('il');
                 $output .= html_writer::end_tag('ul');
 
