@@ -21,8 +21,9 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$string['assignmentidtype'] = 'Select a specific assignment or all to view results';
 $string['config_scale'] = 'A scale to use in report';
+$string['criterion_grade'] = 'Grade: {$a} ';
+$string['criterion_level'] = 'Level: {$a}';
 $string['csvdownload'] = 'Download in spreadsheet format (UTF-8 .csv)';
 $string['desc_scale'] = 'This is only an example config.';
 $string['displayemail'] = 'Display email';
@@ -33,19 +34,20 @@ $string['displaysummary'] = 'Display summary';
 $string['download'] = 'Download results';
 $string['download_help'] = 'Please note - for readability, any feedback content in the downloaded files has its HTML tags removed.';
 $string['err_norecords'] = 'No records found';
-$string['err_noassignments'] = 'No relevant assignments have been found';
+$string['err_noactivities'] = 'No relevant activities have been found';
 $string['excelcsvdownload'] = 'Download in Excel-compatible format (.xlsx)';
 $string['feedback'] = 'Feedback';
 $string['formheader'] = 'Data to include';
 $string['grade'] = 'Grade';
 $string['invalidcourseid'] = 'Invalid course ID';
 $string['nograde'] = '-';
+$string['notset'] = 'not set';
 $string['pluginname'] = 'Rubrics report';
 $string['pluginname_help'] = 'This report displays the Rubrics grading details per student. Tick or untick options to customise the HTML or downloadable results';
 $string['privacy:metadata'] = 'The Rubrics report only reports on data held elsewhere and does not store any personal data.';
 $string['rubrics:access'] = 'Can access the Rubrics report';
 $string['rubrics:view'] = 'Can view the Rubrics report';
-$string['selectassignment'] = 'Select assignment';
+$string['selectactivity'] = 'Select activity';
 $string['student'] = 'Student';
 $string['studentemail'] = 'Email';
 $string['studentid'] = 'ID Number';

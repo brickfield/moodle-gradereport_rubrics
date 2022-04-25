@@ -1,5 +1,5 @@
 <?php
-// This file is part of the gradereport markingguide plugin
+// This file is part of the gradereport rubrics plugin
 //
 // Moodle is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -38,6 +38,12 @@ require_once($CFG->dirroot.'/grade/report/lib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report extends grade_report {
+
+    /** @var array Defines variables for each gradable activity. */
+    const GRADABLES = [
+        'assign' => ['table' => 'assign_grades', 'field' => 'assignment', 'itemoffset' => 0, 'showfeedback' => 1],
+        'forum'  => ['table' => 'forum_grades', 'field' => 'forum', 'itemoffset' => 1, 'showfeedback' => 0],
+    ];
 
     /**
      * Hold the contructed report for display
@@ -87,10 +93,10 @@ class report extends grade_report {
         global $DB, $CFG, $OUTPUT;
 
         $output = "";
-        $assignmentid = $this->assignmentid;
-        if ($assignmentid == 0) {
+        $activityid = $this->activityid;
+        if ($activityid == 0) {
             return($output);
-        } // Disabling all assignments option.
+        } // Disabling all activities option.
 
         // Step one, find all enrolled users to course.
         $coursecontext = context_course::instance($this->courseid);
@@ -98,23 +104,23 @@ class report extends grade_report {
             $userfields = 'u.*', $orderby = 'u.lastname');
         $data = [];
 
-        // Process relevant grading area id from assignmentid and courseid.
-        $gradingarea = $area = $DB->get_record_sql('select gra.id as areaid from {course_modules} cm'.
+        // Process relevant grading area id from activityid and courseid.
+        $area = $DB->get_record_sql('select gra.id as areaid from {course_modules} cm'.
         ' join {context} con on cm.id=con.instanceid'.
         ' join {grading_areas} gra on gra.contextid = con.id'.
-        ' where cm.module = ? and cm.course = ? and cm.instance = ? and gra.activemethod = ?',
-        array(1, $this->courseid, $assignmentid, 'rubric'));
+        ' where cm.course = ? and cm.id = ? and gra.activemethod = ?',
+        [$this->courseid, $activityid, 'rubric']);
 
-         // Step 2, find any rubrics related to assignment.
-        $rubricarray = $rubricarray = [];
+         // Step 2, find any rubrics related to activity.
+        $rubricarray = [];
 
-        // Step 2, find any rubrics related to assignment.
-        $definitions = $DB->get_records_sql("select * from {grading_definitions} where areaid = ?", array($area->areaid));
+        // Step 2, find any rubrics related to activity.
+        $definitions = $DB->get_records_sql("select * from {grading_definitions} where areaid = ?", [$area->areaid]);
         foreach ($definitions as $def) {
             $criteria = $DB->get_records_sql("select * from {gradingform_rubric_criteria}".
-                " where definitionid = ? order by sortorder", array($def->id));
+                " where definitionid = ? order by sortorder", [$def->id]);
             foreach ($criteria as $crit) {
-                $levels = $DB->get_records_sql("select * from {gradingform_rubric_levels} where criterionid = ?", array($crit->id));
+                $levels = $DB->get_records_sql("select * from {gradingform_rubric_levels} where criterionid = ?", [$crit->id]);
                 foreach ($levels as $level) {
                     $rubricarray[$crit->id][$level->id] = $level;
                     $rubricarray[$crit->id]['crit_desc'] = $crit->description;
@@ -122,29 +128,33 @@ class report extends grade_report {
             }
         }
 
+        // Deal with multiple activities enabled for advanced grading.
+        // Uses an internal const $GRADABLES for mapping relevant table, field and offset values.
+        $activity = get_fast_modinfo($this->courseid)->cms[$activityid];
+
         foreach ($users as $user) {
             $fullname = fullname($user); // Get Moodle fullname.
-            $query = "SELECT grf.id, gd.id as defid, ag.userid, ag.grade, grf.instanceid,".
+            $query = "SELECT grf.id, gd.id as defid, act.userid, act.grade, grf.instanceid,".
                 " grf.criterionid, grf.levelid, grf.remark".
-                " FROM {assign_grades} ag".
+                " FROM {" . self::GRADABLES[$activity->modname]['table'] . "} act".
                 " JOIN {grading_instances} gin".
-                  " ON ag.id = gin.itemid".
+                  " ON act.id = gin.itemid".
                 " JOIN {grading_definitions} gd".
                   " ON (gd.id = gin.definitionid )".
-                " JOIN {gradingform_rubric_fillings} grf".
+                  " JOIN {grading_areas} area".
+                  " ON gd.areaid = area.id".
+                  " JOIN {gradingform_rubric_fillings} grf".
                   " ON (grf.instanceid = gin.id)".
-                " WHERE gin.status = ? and ag.assignment = ? and ag.userid = ?";
+                " WHERE gin.status = ? and act." . self::GRADABLES[$activity->modname]['field'] . " = ?".
+                 " and act.userid = ? and area.contextid = ?";
 
-            $queryarray = array(1, $assignmentid, $user->id);
+            $queryarray = [1, $activity->instance, $user->id, $activity->context->id];
             $userdata = $DB->get_records_sql($query, $queryarray);
 
-            $query2 = "SELECT gig.feedback".
-                " FROM {grade_items} git".
-                " JOIN {grade_grades} gig".
-                " ON git.id = gig.itemid".
-                " WHERE git.iteminstance = ? and git.itemmodule = ? and gig.userid = ?";
-            $feedback = $DB->get_record_sql($query2, array($assignmentid, 'assign',  $user->id));
-            $data[$user->id] = array($fullname, $user->email, $userdata, $feedback, $user->idnumber);
+            $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, [$user->id]);
+            $offset = self::GRADABLES[$activity->modname]['itemoffset'];
+            $feedback = $fullgrade->items[$offset]->grades[$user->id];
+            $data[$user->id] = [$fullname, $user->email, $userdata, $feedback, $user->idnumber];
         }
 
         if (count($data) == 0) {
@@ -153,7 +163,7 @@ class report extends grade_report {
 
             $csvlink = new moodle_url('/grade/report/rubrics/index.php', [
                 'id' => $this->course->id,
-                'assignmentid' => $this->assignmentid,
+                'activityid' => $this->activityid,
                 'displaylevl' => $this->displaylevel,
                 'displayremark' => $this->displayremark,
                 'displaysummary' => $this->displaysummary,
@@ -164,7 +174,7 @@ class report extends grade_report {
 
             $xlsxlink = new moodle_url('/grade/report/rubrics/index.php', [
                 'id' => $this->course->id,
-                'assignmentid' => $this->assignmentid,
+                'activityid' => $this->activityid,
                 'displaylevl' => $this->displaylevel,
                 'displayremark' => $this->displayremark,
                 'displaysummary' => $this->displaysummary,
@@ -200,7 +210,7 @@ class report extends grade_report {
             if ($this->excel) {
                 require_once("$CFG->libdir/excellib.class.php");
 
-                $filename = "rubricreport_{$this->assignmentname}.xls";
+                $filename = "rubricreport_{$this->activityname}.xls";
                 $downloadfilename = clean_filename($filename);
                 // Creating a workbook.
                 $workbook = new MoodleExcelWorkbook("-");
@@ -225,7 +235,7 @@ class report extends grade_report {
             } else {
                 require_once($CFG->libdir .'/csvlib.class.php');
 
-                $filename = "rubricreport_{$this->assignmentname}";
+                $filename = "rubricreport_{$this->activityname}";
                 $csvexport = new csv_export_writer();
                 $csvexport->set_filename($filename);
 
@@ -263,7 +273,7 @@ class report extends grade_report {
         foreach ($rubricarray as $key => $value) {
             $table->head[] = $rubricarray[$key]['crit_desc'];
         }
-        if ($this->displayremark) {
+        if ($this->displayremark && $this->displayfeedback) {
             $table->head[] = get_string('feedback', 'gradereport_rubrics');
         }
         $table->head[] = get_string('grade', 'gradereport_rubrics');
@@ -302,14 +312,17 @@ class report extends grade_report {
             foreach ($values[2] as $value) {
                 if (is_object($value)) {
                     $cell = new html_table_cell();
-                    $cell->text = "<div class=\"rubrics_points\">".
-                        round($rubricarray[$value->criterionid][$value->levelid]->score, 2).
-                        " points</div>";
-                    $csvtext = round($rubricarray[$value->criterionid][$value->levelid]->score, 2)." points - ";
+                    $score = $rubricarray[$value->criterionid][$value->levelid]->score ?? 0;
+                    $score = round($score, 2);
+                    $critgrade = get_string('criterion_grade', 'gradereport_rubrics', $score);
+                    $cell->text = "<div class=\"rubrics_points\">" . $critgrade . "</div>";
+                    $csvtext = $critgrade;
                     if ($this->displaylevel) {
-                        $cell->text .= "<div class=\"rubrics_level\">".
-                        $rubricarray[$value->criterionid][$value->levelid]->definition."</div>";
-                        $csvtext .= $rubricarray[$value->criterionid][$value->levelid]->definition." - ";
+                        $level = $rubricarray[$value->criterionid][$value->levelid]->definition ??
+                            get_string('notset', 'gradereport_rubrics');
+                        $critlevel = get_string('criterion_level', 'gradereport_rubrics', $level);
+                        $cell->text .= "<div class=\"rubrics_level\">" . $critlevel . "</div>";
+                        $csvtext .= $critlevel . " - ";
                     }
                     if ($this->displayremark) {
                         $cell->text .= $value->remark;
@@ -322,14 +335,14 @@ class report extends grade_report {
                         $summaryarray[$value->criterionid]["sum"] = 0;
                         $summaryarray[$value->criterionid]["count"] = 0;
                     }
-                    $summaryarray[$value->criterionid]["sum"] += $rubricarray[$value->criterionid][$value->levelid]->score;
+                    $summaryarray[$value->criterionid]["sum"] += $score;
                     $summaryarray[$value->criterionid]["count"]++;
 
                     $csvrow[] = $csvtext;
                 }
             }
 
-            if ($this->displayremark) {
+            if ($this->displayremark && $this->displayfeedback) {
                 $cell = new html_table_cell();
                 if (is_object($values[3])) {
                     $cell->text = strip_tags($values[3]->feedback);
@@ -343,7 +356,7 @@ class report extends grade_report {
             }
 
             $cell = new html_table_cell();
-            $cell->text = $thisgrade; // Grade cell.
+            $cell->text = $values[3]->str_grade; // Grade for display.
             $csvrow[] = $cell->text;
             if ($thisgrade != get_string('nograde', 'gradereport_rubrics')) {
                 if (!array_key_exists("grade", $summaryarray)) {
