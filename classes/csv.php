@@ -1,5 +1,5 @@
 <?php
-// This file is part of the gradereport markingguide plugin
+// This file is part of the gradereport rubrics plugin
 //
 // Moodle is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by

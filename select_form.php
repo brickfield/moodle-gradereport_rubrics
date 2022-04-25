@@ -36,31 +36,31 @@ class report_rubrics_select_form extends moodleform {
     public function definition() {
         global $CFG, $DB;
 
-        $assignments = $DB->get_records_sql('select cm.id, cm.course, con.id as con_id, con.path, '.
-            ' gra.id as gra_id, ass.id as assignmentid, ass.name as assignment '.
+        $activities = $DB->get_records_sql('select cm.id, cm.course, con.id as con_id, con.path, '.
+            ' gra.id as gra_id '.
             ' from {course_modules} cm join {context} con on cm.id=con.instanceid '.
             ' join {grading_areas} gra on gra.contextid = con.id '.
-            ' join {assign} ass on ass.id = cm.instance '.
-            ' where cm.module = ? and cm.course = ? and gra.activemethod = ?',
-            array(1, $this->_customdata['courseid'], 'rubric'));
+            ' where cm.course = ? and gra.activemethod = ?',
+            [$this->_customdata['courseid'], 'rubric']);
 
-        $formarray = array(0 => 'Select');
+        $formarray = [0 => get_string('selectactivity', 'gradereport_rubrics')];
 
-        foreach ($assignments as $item) {
-            $formarray[$item->assignmentid] = $item->assignment;
+        foreach ($activities as $item) {
+            $cm = get_fast_modinfo($this->_customdata['courseid'])->cms[$item->id];
+            $formarray[$cm->id] = $cm->name;
         }
 
         $mform =& $this->_form;
 
-        // Check for any relevant assignments.
-        if (count($assignments) == 0) {
-            $mform->addElement ('html', get_string('err_noassignments', 'gradereport_rubrics'));
+        // Check for any relevant activities.
+        if (count($activities) == 0) {
+            $mform->addElement ('html', get_string('err_noactivities', 'gradereport_rubrics'));
             return;
         }
 
-        $mform->addElement ('select', 'assignmentid', get_string('selectassignment', 'gradereport_rubrics'), $formarray);
-        $mform->setType('assignmentid', PARAM_INT);
-        $mform->getElement('assignmentid')->setSelected(0);
+        $mform->addElement ('select', 'activityid', get_string('selectactivity', 'gradereport_rubrics'), $formarray);
+        $mform->setType('activityid', PARAM_INT);
+        $mform->getElement('activityid')->setSelected(0);
         $mform->addElement('header', 'formheader', get_string('formheader', 'gradereport_rubrics'));
         $mform->setExpanded('formheader', false);
         $mform->addElement ('advcheckbox', 'displaylevel', get_string('displaylevel', 'gradereport_rubrics'));
