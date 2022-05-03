@@ -37,6 +37,7 @@ $string['err_norecords'] = 'No records found';
 $string['err_noactivities'] = 'No relevant activities have been found';
 $string['excelcsvdownload'] = 'Download in Excel-compatible format (.xlsx)';
 $string['feedback'] = 'Feedback';
+$string['filename'] = 'rubricreport_{$a}';
 $string['formheader'] = 'Data to include';
 $string['grade'] = 'Grade';
 $string['invalidcourseid'] = 'Invalid course ID';
