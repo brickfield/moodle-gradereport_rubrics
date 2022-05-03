@@ -1,15 +1,15 @@
-# Brickfield Advanced Grade Rubric Report #
+# Brickfield Advanced Grade Rubrics Report #
 Copyright (C) 2021 [Brickfield Education Labs](https://www.brickfield.ie/)
 
-## What is the Rubric Report? ##
-The Rubric Report module for Moodle is a plugin that enables a view of granular advanced grading results.
+## What is the Rubrics report? ##
+The Rubrics report module for Moodle is a plugin that enables a view of granular advanced grading results.
 This is a course grade report which fits in with the navigation to standard Moodle course grade reports.
 
 ## Usage ##
 On your course, go to the Grades section.
-You will then view the "Rubric report" tab within the series of course grade report tab options.
+You will then view the "Rubrics report" tab within the series of course grade report tab options.
 
-On the Rubric Report, teachers can:
+On the Rubrics report, teachers can:
 * Select the activity within the course to report on.
 * Configure which optional data to display, including:
   * Display level. (Default on)

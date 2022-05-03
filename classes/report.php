@@ -125,6 +125,11 @@ class report extends grade_report {
                     $rubricarray[$crit->id][$level->id] = $level;
                     $rubricarray[$crit->id]['crit_desc'] = $crit->description;
                 }
+                // Calculate max score per criterion.
+                $maxsql = 'SELECT MAX(score)
+                             FROM {gradingform_rubric_levels}
+                            WHERE criterionid = ?';
+                $rubricarray[$crit->id]['max_score'] = round($DB->get_field_sql($maxsql, [$crit->id]), 2);
             }
         }
 
@@ -272,7 +277,7 @@ class report extends grade_report {
             $table->head[] = get_string('studentemail', 'gradereport_rubrics');
         }
         foreach ($rubricarray as $key => $value) {
-            $table->head[] = $rubricarray[$key]['crit_desc'];
+            $table->head[] = get_string('criterion_label', 'gradereport_rubrics', (object)$rubricarray[$key]);
         }
         if ($this->displayremark && $this->displayfeedback) {
             $table->head[] = get_string('feedback', 'gradereport_rubrics');
