@@ -2,7 +2,7 @@
 Copyright (C) 2021 [Brickfield Education Labs](https://www.brickfield.ie/)
 
 ## What is the Rubrics report? ##
-The Rubrics report module for Moodle is a plugin that enables a view of granular advanced grading results.
+The Rubrics report plugin allows teachers and managers to drill down past a student's overall advanced graded mark received, and to view all their students' grades and comments for all the criteria from the relevant rubric advanced grading.
 This is a course grade report which fits in with the navigation to standard Moodle course grade reports.
 
 ## Usage ##
@@ -25,28 +25,25 @@ On the Rubrics report, teachers can:
 * Download these results in CSV or Excel format.
 
 ## Funding credits ##
-Initial funding for this plugin was provided by the National Institute for Digital Learning
-at Dublin City University. Subsequent funding is by Brickfield Education Labs.
+Initial funding for this plugin was provided by the National Institute for Digital Learning at Dublin City University. Subsequent funding is by Brickfield Education Labs.
 
 ## Version support ##
 This plugin has been developed to work on Moodle releases 3.9, 3.10, 3.11, and 4.0.
 
 ## Development ##
 This Plugin has been developed and is maintained by Brickfield Education Labs.
-If you wish to contribute funding to the ongoing development of features and / or
-maintenance of the plugin - please contact [support@brickfield.ie](mailto:support@brickfield.ie).
+If you wish to contribute funding to the ongoing development of features and / or maintenance of the plugin - please contact [support@brickfield.ie](mailto:support@brickfield.ie).
 
 ## Documentation ##
-All public documentation for this plugin will be maintained at the
-[Brickfield site](https://brickfield.ie/docs/gradereport_rubrics).
+All public documentation for this plugin will be maintained at the [Rubrics report README file](https://github.com/brickfield/moodle-gradereport_rubrics/blob/main/README.md).
 
 ## Important Links ##
 * [Code repository](https://github.com/brickfield/moodle-gradereport_rubrics)
 * [Plugin Directory](https://moodle.org/plugins/gradereport_rubrics)
 
 ## Installation ##
-* Unzip and copy "rubrics" folder into Moodle's "grade/report/" folder
-* Visit admin page to install module
+* Unzip and copy the "rubrics" folder into your Moodle's "grade/report/" folder
+* Visit the admin page to install plugin
 
 Further installation instructions can be found on the
 "[Installing plugins](http://docs.moodle.org/en/Installing_contributed_modules_or_plugins)" Moodle documentation page.
