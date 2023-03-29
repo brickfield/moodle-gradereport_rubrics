@@ -23,7 +23,7 @@
 
 $string['config_scale'] = 'A scale to use in report';
 $string['criterion_grade'] = 'Grade: {$a} ';
-$string['criterion_label'] = '{$a->crit_desc}<br />(Max grade: {$a->max_score})';
+$string['criterion_label'] = '{$a->crit_desc} (Max grade: {$a->max_score})';
 $string['criterion_level'] = 'Level: {$a}';
 $string['csvdownload'] = 'Download in spreadsheet format (UTF-8 .csv)';
 $string['desc_scale'] = 'This is only an example config.';
