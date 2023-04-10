@@ -201,10 +201,10 @@ class report extends grade_report {
                 $output .= html_writer::end_tag('ul');
 
                 // Put data into table.
-                $output .= $this->display_table($data, $rubricarray);
+                $output .= $this->display_table($data, $rubricarray, false);
             } else {
                 // Put data into array, not string, for csv download.
-                $output = $this->display_table($data, $rubricarray);
+                $output = $this->display_table($data, $rubricarray, true);
             }
         }
 
@@ -260,9 +260,10 @@ class report extends grade_report {
      *
      * @param array $data
      * @param array $rubricarray
+     * @param bool $csv
      * @return void
      */
-    public function display_table($data, $rubricarray) {
+    public function display_table($data, $rubricarray, $csv) {
         global $DB, $CFG;
         $summaryarray = [];
         $csvarray = [];
@@ -277,7 +278,11 @@ class report extends grade_report {
             $table->head[] = get_string('studentemail', 'gradereport_rubrics');
         }
         foreach ($rubricarray as $key => $value) {
-            $table->head[] = get_string('criterion_label', 'gradereport_rubrics', (object)$rubricarray[$key]);
+            if ($csv) {
+                $table->head[] = get_string('criterion_label', 'gradereport_rubrics', (object)$rubricarray[$key]);
+            } else {
+                $table->head[] = get_string('criterion_label_break', 'gradereport_rubrics', (object)$rubricarray[$key]);
+            }
         }
         if ($this->displayremark && $this->displayfeedback) {
             $table->head[] = get_string('feedback', 'gradereport_rubrics');
