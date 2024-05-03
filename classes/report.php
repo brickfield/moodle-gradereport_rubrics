@@ -115,21 +115,22 @@ class report extends grade_report {
         $rubricarray = [];
 
         // Step 2, find any rubrics related to activity.
-        $definitions = $DB->get_records_sql("select * from {grading_definitions} where areaid = ?", [$area->areaid]);
-        foreach ($definitions as $def) {
-            $criteria = $DB->get_records_sql("select * from {gradingform_rubric_criteria}".
-                " where definitionid = ? order by sortorder", [$def->id]);
-            foreach ($criteria as $crit) {
-                $levels = $DB->get_records_sql("select * from {gradingform_rubric_levels} where criterionid = ?", [$crit->id]);
-                foreach ($levels as $level) {
-                    $rubricarray[$crit->id][$level->id] = $level;
-                    $rubricarray[$crit->id]['crit_desc'] = $crit->description;
-                }
-                // Calculate max score per criterion.
-                $maxsql = 'SELECT MAX(score)
-                             FROM {gradingform_rubric_levels}
-                            WHERE criterionid = ?';
-                $rubricarray[$crit->id]['max_score'] = round($DB->get_field_sql($maxsql, [$crit->id]), 2);
+        $sql = "SELECT crit.id as critid, crit.description, lev.id, lev.score, lev.criterionid, lev.definition, lev.definitionformat
+        FROM {grading_definitions} def
+        LEFT JOIN {gradingform_rubric_criteria} crit ON crit.definitionid = def.id
+        LEFT JOIN {gradingform_rubric_levels} lev ON lev.criterionid = crit.id
+        WHERE def.areaid = ?
+        ORDER BY sortorder";
+        $records = $DB->get_recordset_sql($sql, [$area->areaid]);
+
+        $rubricarray = [];
+
+        foreach ($records as $record) {
+            $rubricarray[$record->critid][$record->id] = (object)['id' => $record->id, 'criterionid' => $record->criterionid, 'score' => $record->score, 'definition' => $record->definition, 'definitionformat' => $record->definitionformat];
+            $rubricarray[$record->critid]['crit_desc'] = $record->description;
+
+            if (!isset($rubricarray[$record->critid]['max_score']) || ($rubricarray[$record->critid]['max_score'] < $record->score)) {
+                $rubricarray[$record->critid]['max_score'] = round($record->score, 2);
             }
         }
 
@@ -161,6 +162,47 @@ class report extends grade_report {
             $feedback = $fullgrade->items[$offset]->grades[$user->id];
             $data[$user->id] = [$fullname, $user->email, $userdata, $feedback, $user->idnumber];
         }
+
+        var_dump($data);
+
+        $userids = [];
+        foreach ($users as $user) {
+            $userids[] = $user->id;
+        }
+
+        list($insql, $inparams) = $DB->get_in_or_equal($userids);
+        $inparams[] = 1;
+        $inparams[] = $activity->instance;
+        $inparams[] = $activity->context->id;
+
+        $table = self::GRADABLES[$activity->modname]['table'];
+        $field = self::GRADABLES[$activity->modname]['field'];
+
+        $sql = "SELECT act.userid, fill.id, def.id as defid, act.grade, fill.instanceid, fill.criterionid, fill.levelid, fill.remark
+        FROM {$CFG->prefix}{$table} act 
+        LEFT JOIN {grading_instances} inst ON act.id = inst.itemid
+        LEFT JOIN {grading_definitions} def ON inst.definitionid = def.id
+        LEFT JOIN {grading_areas} area ON def.areaid = area.id
+        LEFT JOIN {gradingform_rubric_fillings} fill ON inst.id = fill.instanceid
+        WHERE act.userid $insql AND inst.status = ? AND act.{$field} = ? AND area.contextid = ?
+        GROUP BY act.userid";
+
+        $userdata = $DB->get_records_sql($sql, $inparams);
+        // var_dump($userdata);
+
+        $data2 = [];
+
+        foreach ($users as $user) {
+            $fullname = fullname($user);
+            $userd = isset($userdata[$user->id]) ? $userdata[$user->id] : [];
+
+            $fullgrade = \grade_get_grades(2, 'mod', $activity->modname, $activity->instance, [$user->id]);
+            $offset = self::GRADABLES[$activity->modname]['itemoffset'];
+            $feedback = $fullgrade->items[$offset]->grades[$user->id];
+            $data2[$user->id] = [$fullname, $user->email, $userd, $feedback, $user->idnumber];
+        }
+
+        var_dump($data2);
 
         if (count($data) == 0) {
             $output = get_string('err_norecords', 'gradereport_rubrics');

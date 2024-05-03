@@ -36,7 +36,7 @@ $displayemail = optional_param('displayemail', 1, PARAM_INT);
 $format = optional_param('format', '', PARAM_ALPHA);
 $courseid = required_param('id', PARAM_INT); // Course id.
 
-if (!$course = $DB->get_record('course', array('id' => $courseid))) {
+if (!$course = get_course($courseid)) {
     throw new moodle_exception(get_string('invalidcourseid', 'gradereport_rubrics'));
 }
 
