@@ -133,6 +133,7 @@ class report extends grade_report {
                 $rubricarray[$record->critid]['max_score'] = round($record->score, 2);
             }
         }
+        $records->close();
 
         // Deal with multiple activities enabled for advanced grading.
         // Uses an internal const $GRADABLES for mapping relevant table, field and offset values.
@@ -162,7 +163,7 @@ class report extends grade_report {
                  WHERE act.userid $insql AND inst.status = ? AND act.{$field} = ? AND area.contextid = ?
               ORDER BY act.userid ASC, act.attemptnumber DESC";
 
-        $userdata = $DB->get_records_sql($sql, $inparams);
+        $userdata = $DB->get_recordset_sql($sql, $inparams);
         $udata_array = [];
         // Putting $userdata from separate criteria query records into a hashed array per userid.
         // TODO Need to look into multiple attempts data set handling too.
@@ -172,6 +173,7 @@ class report extends grade_report {
             }
             $udata_array[$udata->userid][] = $udata;
         }
+        $userdata->close();
 
         $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, $userids);
 
