@@ -164,8 +164,6 @@ class report extends grade_report {
             $data[$user->id] = [$fullname, $user->email, $userdata, $feedback, $user->idnumber];
         }
 
-        var_dump($data);
-
         $userids = [];
         foreach ($users as $user) {
             $userids[] = $user->id;
@@ -179,31 +177,38 @@ class report extends grade_report {
         $table = $gradable['table'];
         $field = $gradable['field'];
 
-        $sql = "SELECT act.userid, fill.id, def.id as defid, act.grade, fill.instanceid, fill.criterionid, fill.levelid, fill.remark
-                  FROM {$CFG->prefix}{$table} act
+        $sql = "SELECT act.id, act.userid, fill.id, def.id as defid, act.grade,
+                       fill.instanceid, fill.criterionid, fill.levelid, fill.remark
+                  FROM {". $table . "} act
              LEFT JOIN {grading_instances} inst ON act.id = inst.itemid
              LEFT JOIN {grading_definitions} def ON inst.definitionid = def.id
              LEFT JOIN {grading_areas} area ON def.areaid = area.id
              LEFT JOIN {gradingform_rubric_fillings} fill ON inst.id = fill.instanceid
                  WHERE act.userid $insql AND inst.status = ? AND act.{$field} = ? AND area.contextid = ?
-              GROUP BY act.userid";
+              ORDER BY act.userid ASC, act.attemptnumber DESC";
 
         $userdata = $DB->get_records_sql($sql, $inparams);
-        // var_dump($userdata);
+        $udata_array = [];
+        // Putting $userdata from separate criteria query records into a hashed array per userid.
+        // TODO Need to look into multiple attempts data set handling too.
+        foreach ($userdata as $udata) {
+            if (!isset($udata_array[$udata->userid])) {
+                $udata_array[$udata->userid] = [];
+            }
+            $udata_array[$udata->userid][] = $udata;
+        }
 
         $data2 = [];
+        $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, $userids);
 
         foreach ($users as $user) {
             $fullname = fullname($user);
-            $userd = isset($userdata[$user->id]) ? $userdata[$user->id] : [];
+            $userd = isset($udata_array[$user->id]) ? $udata_array[$user->id] : [];
 
-            $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, [$user->id]);
             $offset = $gradable['itemoffset'];
             $feedback = $fullgrade->items[$offset]->grades[$user->id];
             $data2[$user->id] = [$fullname, $user->email, $userd, $feedback, $user->idnumber];
         }
-
-        var_dump($data2);
 
         if (count($data) == 0) {
             $output = get_string('err_norecords', 'gradereport_rubrics');
@@ -244,7 +249,7 @@ class report extends grade_report {
                 $output .= html_writer::end_tag('ul');
 
                 // Put data into table.
-                $output .= $this->display_table($data, $rubricarray, false);
+                $output .= $this->display_table($data2, $rubricarray, false);
             } else {
                 // Put data into array, not string, for csv download.
                 $output = $this->display_table($data, $rubricarray, true);
