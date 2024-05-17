@@ -179,13 +179,13 @@ class report extends grade_report {
         $field = self::GRADABLES[$activity->modname]['field'];
 
         $sql = "SELECT act.userid, fill.id, def.id as defid, act.grade, fill.instanceid, fill.criterionid, fill.levelid, fill.remark
-        FROM {$CFG->prefix}{$table} act 
-        LEFT JOIN {grading_instances} inst ON act.id = inst.itemid
-        LEFT JOIN {grading_definitions} def ON inst.definitionid = def.id
-        LEFT JOIN {grading_areas} area ON def.areaid = area.id
-        LEFT JOIN {gradingform_rubric_fillings} fill ON inst.id = fill.instanceid
-        WHERE act.userid $insql AND inst.status = ? AND act.{$field} = ? AND area.contextid = ?
-        GROUP BY act.userid";
+                  FROM {$CFG->prefix}{$table} act
+             LEFT JOIN {grading_instances} inst ON act.id = inst.itemid
+             LEFT JOIN {grading_definitions} def ON inst.definitionid = def.id
+             LEFT JOIN {grading_areas} area ON def.areaid = area.id
+             LEFT JOIN {gradingform_rubric_fillings} fill ON inst.id = fill.instanceid
+                 WHERE act.userid $insql AND inst.status = ? AND act.{$field} = ? AND area.contextid = ?
+              GROUP BY act.userid";
 
         $userdata = $DB->get_records_sql($sql, $inparams);
         // var_dump($userdata);
@@ -196,7 +196,7 @@ class report extends grade_report {
             $fullname = fullname($user);
             $userd = isset($userdata[$user->id]) ? $userdata[$user->id] : [];
 
-            $fullgrade = \grade_get_grades(2, 'mod', $activity->modname, $activity->instance, [$user->id]);
+            $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, [$user->id]);
             $offset = self::GRADABLES[$activity->modname]['itemoffset'];
             $feedback = $fullgrade->items[$offset]->grades[$user->id];
             $data2[$user->id] = [$fullname, $user->email, $userd, $feedback, $user->idnumber];
