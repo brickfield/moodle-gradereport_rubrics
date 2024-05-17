@@ -105,22 +105,22 @@ class report extends grade_report {
         $data = [];
 
         // Process relevant grading area id from activityid and courseid.
-        $area = $DB->get_record_sql('select gra.id as areaid from {course_modules} cm'.
-        ' join {context} con on cm.id=con.instanceid'.
-        ' join {grading_areas} gra on gra.contextid = con.id'.
-        ' where cm.course = ? and cm.id = ? and gra.activemethod = ?',
-        [$this->courseid, $activityid, 'rubric']);
+        $areasql = "SELECT gra.id as areaid FROM {course_modules} cm
+                 LEFT JOIN {context} con on cm.id=con.instanceid
+                 LEFT JOIN {grading_areas} gra on gra.contextid = con.id
+                     WHERE cm.course = ? AND cm.id = ? AND gra.activemethod = ?";
+        $area = $DB->get_record_sql($areasql, [$this->courseid, $activityid, 'rubric']);
 
          // Step 2, find any rubrics related to activity.
         $rubricarray = [];
 
         // Step 2, find any rubrics related to activity.
         $sql = "SELECT crit.id as critid, crit.description, lev.id, lev.score, lev.criterionid, lev.definition, lev.definitionformat
-        FROM {grading_definitions} def
-        LEFT JOIN {gradingform_rubric_criteria} crit ON crit.definitionid = def.id
-        LEFT JOIN {gradingform_rubric_levels} lev ON lev.criterionid = crit.id
-        WHERE def.areaid = ?
-        ORDER BY sortorder";
+                  FROM {grading_definitions} def
+             LEFT JOIN {gradingform_rubric_criteria} crit ON crit.definitionid = def.id
+             LEFT JOIN {gradingform_rubric_levels} lev ON lev.criterionid = crit.id
+                 WHERE def.areaid = ?
+              ORDER BY sortorder";
         $records = $DB->get_recordset_sql($sql, [$area->areaid]);
 
         $rubricarray = [];
@@ -137,12 +137,13 @@ class report extends grade_report {
         // Deal with multiple activities enabled for advanced grading.
         // Uses an internal const $GRADABLES for mapping relevant table, field and offset values.
         $activity = get_fast_modinfo($this->courseid)->cms[$activityid];
+        $gradable = self::GRADABLES[$activity->modname];
 
         foreach ($users as $user) {
             $fullname = fullname($user); // Get Moodle fullname.
             $query = "SELECT grf.id, gd.id as defid, act.userid, act.grade, grf.instanceid,".
                 " grf.criterionid, grf.levelid, grf.remark".
-                " FROM {" . self::GRADABLES[$activity->modname]['table'] . "} act".
+                " FROM {" . $gradable['table'] . "} act".
                 " JOIN {grading_instances} gin".
                   " ON act.id = gin.itemid".
                 " JOIN {grading_definitions} gd".
@@ -151,14 +152,14 @@ class report extends grade_report {
                   " ON gd.areaid = area.id".
                   " JOIN {gradingform_rubric_fillings} grf".
                   " ON (grf.instanceid = gin.id)".
-                " WHERE gin.status = ? and act." . self::GRADABLES[$activity->modname]['field'] . " = ?".
+                " WHERE gin.status = ? and act." . $gradable['field'] . " = ?".
                  " and act.userid = ? and area.contextid = ?";
 
             $queryarray = [1, $activity->instance, $user->id, $activity->context->id];
             $userdata = $DB->get_records_sql($query, $queryarray);
 
             $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, [$user->id]);
-            $offset = self::GRADABLES[$activity->modname]['itemoffset'];
+            $offset = $gradable['itemoffset'];
             $feedback = $fullgrade->items[$offset]->grades[$user->id];
             $data[$user->id] = [$fullname, $user->email, $userdata, $feedback, $user->idnumber];
         }
@@ -175,8 +176,8 @@ class report extends grade_report {
         $inparams[] = $activity->instance;
         $inparams[] = $activity->context->id;
 
-        $table = self::GRADABLES[$activity->modname]['table'];
-        $field = self::GRADABLES[$activity->modname]['field'];
+        $table = $gradable['table'];
+        $field = $gradable['field'];
 
         $sql = "SELECT act.userid, fill.id, def.id as defid, act.grade, fill.instanceid, fill.criterionid, fill.levelid, fill.remark
                   FROM {$CFG->prefix}{$table} act
@@ -197,7 +198,7 @@ class report extends grade_report {
             $userd = isset($userdata[$user->id]) ? $userdata[$user->id] : [];
 
             $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, [$user->id]);
-            $offset = self::GRADABLES[$activity->modname]['itemoffset'];
+            $offset = $gradable['itemoffset'];
             $feedback = $fullgrade->items[$offset]->grades[$user->id];
             $data2[$user->id] = [$fullname, $user->email, $userd, $feedback, $user->idnumber];
         }
