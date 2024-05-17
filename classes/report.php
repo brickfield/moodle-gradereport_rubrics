@@ -126,10 +126,12 @@ class report extends grade_report {
         $rubricarray = [];
 
         foreach ($records as $record) {
-            $rubricarray[$record->critid][$record->id] = (object)['id' => $record->id, 'criterionid' => $record->criterionid, 'score' => $record->score, 'definition' => $record->definition, 'definitionformat' => $record->definitionformat];
+            $rubricarray[$record->critid][$record->id] = (object)['id' => $record->id, 'criterionid' => $record->criterionid,
+                'score' => $record->score, 'definition' => $record->definition, 'definitionformat' => $record->definitionformat];
             $rubricarray[$record->critid]['crit_desc'] = $record->description;
 
-            if (!isset($rubricarray[$record->critid]['max_score']) || ($rubricarray[$record->critid]['max_score'] < $record->score)) {
+            if (!isset($rubricarray[$record->critid]['max_score'])
+                    || ($rubricarray[$record->critid]['max_score'] < $record->score)) {
                 $rubricarray[$record->critid]['max_score'] = round($record->score, 2);
             }
         }
@@ -164,14 +166,14 @@ class report extends grade_report {
               ORDER BY act.userid ASC, act.attemptnumber DESC";
 
         $userdata = $DB->get_recordset_sql($sql, $inparams);
-        $udata_array = [];
+        $udataarray = [];
         // Putting $userdata from separate criteria query records into a hashed array per userid.
         // TODO Need to look into multiple attempts data set handling too.
         foreach ($userdata as $udata) {
-            if (!isset($udata_array[$udata->userid])) {
-                $udata_array[$udata->userid] = [];
+            if (!isset($udataarray[$udata->userid])) {
+                $udataarray[$udata->userid] = [];
             }
-            $udata_array[$udata->userid][] = $udata;
+            $udataarray[$udata->userid][] = $udata;
         }
         $userdata->close();
 
@@ -179,7 +181,7 @@ class report extends grade_report {
 
         foreach ($users as $user) {
             $fullname = fullname($user);
-            $userd = isset($udata_array[$user->id]) ? $udata_array[$user->id] : [];
+            $userd = isset($udataarray[$user->id]) ? $udataarray[$user->id] : [];
 
             $offset = $gradable['itemoffset'];
             $feedback = $fullgrade->items[$offset]->grades[$user->id];
