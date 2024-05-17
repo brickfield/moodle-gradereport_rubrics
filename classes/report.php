@@ -139,31 +139,6 @@ class report extends grade_report {
         $activity = get_fast_modinfo($this->courseid)->cms[$activityid];
         $gradable = self::GRADABLES[$activity->modname];
 
-        foreach ($users as $user) {
-            $fullname = fullname($user); // Get Moodle fullname.
-            $query = "SELECT grf.id, gd.id as defid, act.userid, act.grade, grf.instanceid,".
-                " grf.criterionid, grf.levelid, grf.remark".
-                " FROM {" . $gradable['table'] . "} act".
-                " JOIN {grading_instances} gin".
-                  " ON act.id = gin.itemid".
-                " JOIN {grading_definitions} gd".
-                  " ON (gd.id = gin.definitionid )".
-                  " JOIN {grading_areas} area".
-                  " ON gd.areaid = area.id".
-                  " JOIN {gradingform_rubric_fillings} grf".
-                  " ON (grf.instanceid = gin.id)".
-                " WHERE gin.status = ? and act." . $gradable['field'] . " = ?".
-                 " and act.userid = ? and area.contextid = ?";
-
-            $queryarray = [1, $activity->instance, $user->id, $activity->context->id];
-            $userdata = $DB->get_records_sql($query, $queryarray);
-
-            $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, [$user->id]);
-            $offset = $gradable['itemoffset'];
-            $feedback = $fullgrade->items[$offset]->grades[$user->id];
-            $data[$user->id] = [$fullname, $user->email, $userdata, $feedback, $user->idnumber];
-        }
-
         $userids = [];
         foreach ($users as $user) {
             $userids[] = $user->id;
@@ -198,7 +173,6 @@ class report extends grade_report {
             $udata_array[$udata->userid][] = $udata;
         }
 
-        $data2 = [];
         $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, $userids);
 
         foreach ($users as $user) {
@@ -207,7 +181,7 @@ class report extends grade_report {
 
             $offset = $gradable['itemoffset'];
             $feedback = $fullgrade->items[$offset]->grades[$user->id];
-            $data2[$user->id] = [$fullname, $user->email, $userd, $feedback, $user->idnumber];
+            $data[$user->id] = [$fullname, $user->email, $userd, $feedback, $user->idnumber];
         }
 
         if (count($data) == 0) {
@@ -249,7 +223,7 @@ class report extends grade_report {
                 $output .= html_writer::end_tag('ul');
 
                 // Put data into table.
-                $output .= $this->display_table($data2, $rubricarray, false);
+                $output .= $this->display_table($data, $rubricarray, false);
             } else {
                 // Put data into array, not string, for csv download.
                 $output = $this->display_table($data, $rubricarray, true);
