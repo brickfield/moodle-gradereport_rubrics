@@ -87,7 +87,7 @@ class report extends grade_report {
     /**
      * Generate and display the rubric report
      *
-     * @return void
+     * @return string|null
      */
     public function show() {
         global $DB, $CFG, $OUTPUT;
@@ -287,7 +287,7 @@ class report extends grade_report {
      * @param array $data
      * @param array $rubricarray
      * @param bool $csv
-     * @return void
+     * @return array|string
      */
     public function display_table($data, $rubricarray, $csv) {
         global $DB, $CFG;
@@ -303,11 +303,11 @@ class report extends grade_report {
         if ($this->displayemail) {
             $table->head[] = get_string('studentemail', 'gradereport_rubrics');
         }
-        foreach ($rubricarray as $key => $value) {
+        foreach ($rubricarray as $rkey => $rvalue) {
             if ($csv) {
-                $table->head[] = get_string('criterion_label', 'gradereport_rubrics', (object)$rubricarray[$key]);
+                $table->head[] = get_string('criterion_label', 'gradereport_rubrics', (object)$rubricarray[$rkey]);
             } else {
-                $table->head[] = get_string('criterion_label_break', 'gradereport_rubrics', (object)$rubricarray[$key]);
+                $table->head[] = get_string('criterion_label_break', 'gradereport_rubrics', (object)$rubricarray[$rkey]);
             }
         }
         if ($this->displayremark && $this->displayfeedback) {
@@ -339,7 +339,7 @@ class report extends grade_report {
             }
             $thisgrade = get_string('nograde', 'gradereport_rubrics');
             if (count($values[2]) == 0) { // Students with no marks, add fillers.
-                foreach ($rubricarray as $key => $value) {
+                foreach ($rubricarray as $rkey => $rvalue) {
                     $cell = new html_table_cell();
                     $cell->text = get_string('nograde', 'gradereport_rubrics');
                     $row->cells[] = $cell;
