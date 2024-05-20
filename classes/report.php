@@ -381,7 +381,7 @@ class report extends grade_report {
 
             if ($this->displayremark && $this->displayfeedback) {
                 $cell = new html_table_cell();
-                if (is_object($values[3])) {
+                if (is_object($values[3]) && (!empty($values[3]->feedback))) {
                     $cell->text = strip_tags($values[3]->feedback);
                 } // Feedback cell.
                 if (empty($cell->text)) {
