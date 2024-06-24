@@ -34,7 +34,7 @@ class report_rubrics_select_form extends moodleform {
      * @return void
      */
     public function definition() {
-        global $CFG, $DB;
+        global $DB;
 
         $sql = "SELECT cm.id, cm.course, con.id AS con_id, con.path, gra.id AS gra_id
                   FROM {course_modules} cm

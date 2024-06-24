@@ -39,6 +39,31 @@ require_once($CFG->dirroot.'/grade/report/lib.php');
  */
 class report extends grade_report {
 
+    /** @var int Activity id. */
+    public $activityid = 0;
+    /** @var string Activity name. */
+    public $activityname = '';
+    /** @var string Download format. */
+    public $format = '';
+    /** @var bool Whether the download is excel. */
+    public $excel = false;
+    /** @var bool Whether the download is csv. */
+    public $csv = false;
+    /** @var bool Whether to display levels. */
+    public $displaylevel = false;
+    /** @var bool Whether to display remarks. */
+    public $displayremark = false;
+    /** @var bool Whether to display summary. */
+    public $displaysummary = false;
+    /** @var bool Whether to display id numbers. */
+    public $displayidnumber = false;
+    /** @var bool Whether to display emails. */
+    public $displayemail = false;
+    /** @var bool Whether to display feedback. */
+    public $displayfeedback = false;
+    /** @var grade_item Course grade items. */
+    public $coursegradeitem = null;
+
     /** @var array Defines variables for each gradable activity. */
     const GRADABLES = [
         'assign' => ['table' => 'assign_grades', 'field' => 'assignment', 'itemoffset' => 0, 'showfeedback' => 1],
@@ -58,11 +83,36 @@ class report extends grade_report {
      * @param int $courseid
      * @param object $gpr
      * @param string $context
+     * @param int $activityid
+     * @param string $format
+     * @param bool $excel
+     * @param bool $csv
+     * @param bool $displaylevel
+     * @param bool $displayremark
+     * @param bool $displaysummary
+     * @param bool $displayidnumber
+     * @param bool $displayemail
+     * @param string $activityname
+     * @param bool $displayfeedback
      * @param int|null $page
      */
-    public function __construct($courseid, $gpr, $context, $page=null) {
+    public function __construct($courseid, $gpr, $context, $activityid, $format, $excel, $csv, $displaylevel,
+                                $displayremark, $displaysummary, $displayidnumber, $displayemail, $activityname, $displayfeedback, $page=null) {
         parent::__construct($courseid, $gpr, $context, $page);
-        $this->course_grade_item = grade_item::fetch_course_item($this->courseid);
+
+        $this->activityid = $activityid;
+        $this->format = $format;
+        $this->excel = $excel;
+        $this->csv = $csv;
+        $this->displaylevel = $displaylevel;
+        $this->displayremark = $displayremark;
+        $this->displaysummary = $displaysummary;
+        $this->displayidnumber = $displayidnumber;
+        $this->displayemail = $displayemail;
+        $this->activityname = $activityname;
+        $this->displayfeedback = $displayfeedback;
+
+        $this->coursegradeitem = grade_item::fetch_course_item($this->courseid);
     }
 
     /**
@@ -100,8 +150,7 @@ class report extends grade_report {
 
         // Step one, find all enrolled users to course.
         $coursecontext = context_course::instance($this->courseid);
-        $users = get_enrolled_users($coursecontext, $withcapability = 'mod/assign:submit', $groupid = 0,
-            $userfields = 'u.*', $orderby = 'u.lastname');
+        $users = get_enrolled_users($coursecontext, 'mod/assign:submit', 0, 'u.*', 'u.lastname');
         $data = [];
 
         // Process relevant grading area id from activityid and courseid.
@@ -290,7 +339,6 @@ class report extends grade_report {
      * @return array|string
      */
     public function display_table($data, $rubricarray, $csv) {
-        global $DB, $CFG;
         $summaryarray = [];
         $csvarray = [];
 
