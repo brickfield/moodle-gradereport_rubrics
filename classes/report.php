@@ -39,6 +39,42 @@ require_once($CFG->dirroot.'/grade/report/lib.php');
  */
 class report extends grade_report {
 
+    /** @var grade_item Grade item. */
+    public $course_grade_item;
+
+    /** @var int Activity id. */
+    public $activityid;
+
+    /** @var string Activity name. */
+    public $activityname;
+
+    /** @var bool Display level. */
+    public $displaylevel;
+
+    /** @var bool Display remark. */
+    public $displayremark;
+
+    /** @var bool Display summary. */
+    public $displaysummary;
+
+    /** @var bool Display email. */
+    public $displayemail;
+
+    /** @var bool Display id. */
+    public $displayidnumber;
+
+    /** @var bool Display feedback. */
+    public $displayfeedback;
+
+    /** @var bool CSV download. */
+    public $csv;
+
+    /** @var bool Excel download. */
+    public $excel;
+
+    /** @var string Download format. */
+    public $format;
+
     /** @var array Defines variables for each gradable activity. */
     const GRADABLES = [
         'assign' => ['table' => 'assign_grades', 'field' => 'assignment', 'itemoffset' => 0, 'showfeedback' => 1],
