@@ -212,7 +212,7 @@ class report extends grade_report {
              LEFT JOIN {grading_areas} area ON def.areaid = area.id
              LEFT JOIN {gradingform_rubric_fillings} fill ON inst.id = fill.instanceid
                  WHERE act.userid $insql AND inst.status = ? AND act.{$field} = ? AND area.contextid = ?
-              ORDER BY act.userid ASC, act.attemptnumber DESC";
+              ORDER BY act.userid ASC";
 
         $userdata = $DB->get_recordset_sql($sql, $inparams);
         $udataarray = [];
