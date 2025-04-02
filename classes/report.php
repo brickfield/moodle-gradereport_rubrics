@@ -153,7 +153,7 @@ class report extends grade_report {
         $coursecontext = context_course::instance($this->courseid);
         $users = get_enrolled_users($coursecontext, 'mod/assign:submit', 0, 'u.*', 'u.lastname');
         if (!$users) { // If no users were returned.
-            return($output);
+            return (!$this->csv) ? get_string('err_norecords', 'gradereport_rubrics') : $output;
         }
         $data = [];
 
