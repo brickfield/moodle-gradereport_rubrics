@@ -15,15 +15,22 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- *  Version information for report rubrics
- * @package    gradereport_rubrics
- * @copyright  2021 Brickfield Education Labs <https://www.brickfield.ie/> - Lead Developer: Karen Holland
- * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * The plugin settings.
+ * @package     gradereport_rubrics
+ * @author      Karen Holland <karen@brickfieldlabs.ie>
+ * @copyright   2025 Brickfield Education Labs <https://www.brickfield.ie/>
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'gradereport_rubrics';
-$plugin->release = '1.401.02';
-$plugin->version = 2023041703;
-$plugin->requires  = 2022112800; // Moodle 4.1 and higher.
-$plugin->maturity  = MATURITY_STABLE;
+defined('MOODLE_INTERNAL') || die;
+
+if ($hassiteconfig) {
+    if ($ADMIN->fulltree) {
+        $settings->add(new admin_setting_configcheckbox(
+            'gradereport_rubrics/displayurlparams',
+            get_string('settings:displayurlparams', 'gradereport_rubrics'),
+            get_string('settings:displayurlparams_desc', 'gradereport_rubrics'),
+            '0'
+        ));
+    }
+}
