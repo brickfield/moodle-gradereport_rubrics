@@ -33,3 +33,22 @@ If you wish to contribute funding to the ongoing development of features and / o
 
 Further installation instructions can be found on the
 "[Installing plugins](http://docs.moodle.org/en/Installing_contributed_modules_or_plugins)" Moodle documentation page.
+
+## Usage
+On your course, go to the Grades section.
+You will then view the "Rubrics report" tab within the series of course grade report tab options.
+
+On the Rubrics report, teachers can:
+* Select the activity within the course to report on.
+* Configure which optional data to display, including:
+  * Display level. (Default on)
+  * Display remarks. (Default on)
+  * Display summary. (Default on)
+  * Display email. (Default off)
+  * Display ID number. (Default off)
+* View a pivot table with:
+  * All of the course students.
+  * All of the activity grade criteria.
+  * All of the students' grades and comments per criterion.
+  * All of the students' overall grades and feedback.
+* Download these results in CSV or Excel format.
