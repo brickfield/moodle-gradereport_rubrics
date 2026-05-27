@@ -22,8 +22,8 @@
  */
 
 require_once('../../../config.php');
-require_once($CFG->libdir .'/gradelib.php');
-require_once($CFG->dirroot.'/grade/lib.php');
+require_once($CFG->libdir . '/gradelib.php');
+require_once($CFG->dirroot . '/grade/lib.php');
 use gradereport_rubrics\report;
 require_once("select_form.php");
 
@@ -45,7 +45,7 @@ $excel = $format == 'excelcsv';
 $csv = $format == 'csv' || $excel;
 
 if (!$csv) {
-    $PAGE->set_url(new moodle_url('/grade/report/rubrics/index.php', array('id' => $courseid)));
+    $PAGE->set_url(new moodle_url('/grade/report/rubrics/index.php', ['id' => $courseid]));
 }
 
 require_login($courseid);
@@ -60,7 +60,7 @@ require_capability('gradereport/rubrics:view', $context);
 $activityname = '';
 
 // Set up the form.
-$mform = new report_rubrics_select_form(null, array('courseid' => $courseid, 'activityid' => $activityid));
+$mform = new report_rubrics_select_form(null, ['courseid' => $courseid, 'activityid' => $activityid]);
 
 // Did we get anything from the form?
 if ($formdata = $mform->get_data()) {
@@ -81,9 +81,8 @@ if ($activityid != 0) {
 }
 
 if (!$csv) {
-    print_grade_page_head($COURSE->id, 'report', 'rubrics',
-        get_string('pluginname', 'gradereport_rubrics') .
-        $OUTPUT->help_icon('pluginname', 'gradereport_rubrics'));
+    $grade_page_head = get_string('pluginname', 'gradereport_rubrics') . $OUTPUT->help_icon('pluginname', 'gradereport_rubrics');
+    print_grade_page_head($COURSE->id, 'report', 'rubrics', $grade_page_head);
 
     // Display the form.
     $mform->display();
@@ -91,8 +90,8 @@ if (!$csv) {
     grade_regrade_final_grades($courseid); // First make sure we have proper final grades.
 }
 
-$gpr = new grade_plugin_return(array('type' => 'report', 'plugin' => 'grader',
-    'courseid' => $courseid)); // Return tracking object.
+// Return tracking object.
+$gpr = new grade_plugin_return(['type' => 'report', 'plugin' => 'grader', 'courseid' => $courseid]);
 $report = new report(
     $courseid,
     $gpr,

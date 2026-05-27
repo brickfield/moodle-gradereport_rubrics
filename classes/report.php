@@ -13,6 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 namespace gradereport_rubrics;
 
 defined('MOODLE_INTERNAL') || die();
@@ -27,7 +28,7 @@ use moodle_url;
 use MoodleExcelWorkbook;
 use csv_export_writer;
 use context_course;
-require_once($CFG->dirroot.'/grade/report/lib.php');
+require_once($CFG->dirroot . '/grade/report/lib.php');
 
 /**
  * Provides rubric report render functionality.
@@ -38,7 +39,6 @@ require_once($CFG->dirroot.'/grade/report/lib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report extends grade_report {
-
     /** @var int Activity id. */
     public $activityid = 0;
     /** @var string Activity name. */
@@ -96,9 +96,23 @@ class report extends grade_report {
      * @param bool $displayfeedback
      * @param int|null $page
      */
-    public function __construct($courseid, $gpr, $context, $activityid, $format, $excel, $csv, $displaylevel,
-            $displayremark, $displaysummary, $displayidnumber, $displayemail, $activityname,
-            $displayfeedback, $page=null) {
+    public function __construct(
+        $courseid,
+        $gpr,
+        $context,
+        $activityid,
+        $format,
+        $excel,
+        $csv,
+        $displaylevel,
+        $displayremark,
+        $displaysummary,
+        $displayidnumber,
+        $displayemail,
+        $activityname,
+        $displayfeedback,
+        $page = null
+        ) {
         parent::__construct($courseid, $gpr, $context, $page);
 
         $this->activityid = $activityid;
@@ -183,8 +197,10 @@ class report extends grade_report {
                 'score' => $record->score, 'definition' => $record->definition, 'definitionformat' => $record->definitionformat];
             $rubricarray[$record->critid]['crit_desc'] = $record->description;
 
-            if (!isset($rubricarray[$record->critid]['max_score'])
-                    || ($rubricarray[$record->critid]['max_score'] < $record->score)) {
+            if (
+                !isset($rubricarray[$record->critid]['max_score'])
+                || ($rubricarray[$record->critid]['max_score'] < $record->score)
+            ) {
                 $rubricarray[$record->critid]['max_score'] = round($record->score, 2);
             }
         }
@@ -211,7 +227,7 @@ class report extends grade_report {
 
         $sql = "SELECT act.id, act.userid, fill.id, def.id as defid, act.grade,
                        fill.instanceid, fill.criterionid, fill.levelid, fill.remark
-                  FROM {". $table . "} act
+                  FROM {" . $table . "} act
              LEFT JOIN {grading_instances} inst ON act.id = inst.itemid
              LEFT JOIN {grading_definitions} def ON inst.definitionid = def.id
              LEFT JOIN {grading_areas} area ON def.areaid = area.id
@@ -246,7 +262,6 @@ class report extends grade_report {
         if (count($data) == 0) {
             $output = get_string('err_norecords', 'gradereport_rubrics');
         } else {
-
             $csvlink = new moodle_url('/grade/report/rubrics/index.php', [
                 'id' => $this->course->id,
                 'activityid' => $this->activityid,
@@ -319,7 +334,7 @@ class report extends grade_report {
                 $workbook->close();
                 exit;
             } else {
-                require_once($CFG->libdir .'/csvlib.class.php');
+                require_once($CFG->libdir . '/csvlib.class.php');
 
                 $filename = get_string('filename', 'gradereport_rubrics', $this->activityname);
                 $filename = clean_filename($filename);

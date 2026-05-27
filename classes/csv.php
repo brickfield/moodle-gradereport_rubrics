@@ -13,6 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 namespace gradereport_rubrics;
 use core_text;
 
@@ -25,7 +26,6 @@ use core_text;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class csv {
-
     /**
      * Replace or add proper quotations for csv files
      *
@@ -35,9 +35,9 @@ class csv {
      */
     public function csv_quote($value, $excel) {
         if ($excel) {
-            return core_text::convert('"'.str_replace('"', "'", $value).'"', 'UTF-8', 'UTF-16LE');
+            return core_text::convert('"' . str_replace('"', "'", $value) . '"', 'UTF-8', 'UTF-16LE');
         } else {
-            return '"'.str_replace('"', "'", $value).'"';
+            return '"' . str_replace('"', "'", $value).'"';
         }
     }
 }
