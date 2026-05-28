@@ -13,6 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 namespace gradereport_rubrics;
 
 defined('MOODLE_INTERNAL') || die();
@@ -23,7 +24,7 @@ use html_writer;
 use flexible_table;
 use moodle_url;
 use context_course;
-require_once($CFG->dirroot.'/grade/report/lib.php');
+require_once($CFG->dirroot . '/grade/report/lib.php');
 
 /**
  * Provides rubric report render functionality.
@@ -34,7 +35,6 @@ require_once($CFG->dirroot.'/grade/report/lib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report extends grade_report {
-
     /** @var int Activity id. */
     public $activityid = 0;
     /** @var string Activity name. */
@@ -76,9 +76,20 @@ class report extends grade_report {
      * @param bool $displayfeedback
      * @param int|null $page
      */
-    public function __construct($courseid, $gpr, $context, $activityid, $displaylevel,
-            $displayremark, $displaysummary, $displayidnumber, $displayemail, $activityname,
-            $displayfeedback, $page=null) {
+    public function __construct(
+        $courseid,
+        $gpr,
+        $context,
+        $activityid,
+        $displaylevel,
+        $displayremark,
+        $displaysummary,
+        $displayidnumber,
+        $displayemail,
+        $activityname,
+        $displayfeedback,
+        $page=null
+    ) {
         parent::__construct($courseid, $gpr, $context, $page);
 
         $this->activityid      = $activityid;
@@ -122,6 +133,7 @@ class report extends grade_report {
      * file response headers on download requests; those headers must arrive before any
      * HTML is printed, so setup() must be called here, not deferred to display_table().
      *
+     * @param string $download
      * @return flexible_table
      */
     public function init_table(string $download = ''): flexible_table {
@@ -259,8 +271,10 @@ class report extends grade_report {
             ];
             $rubricarray[$record->critid]['crit_desc'] = $record->description;
 
-            if (!isset($rubricarray[$record->critid]['max_score'])
-                    || ($rubricarray[$record->critid]['max_score'] < $record->score)) {
+            if (
+                !isset($rubricarray[$record->critid]['max_score'])
+                || ($rubricarray[$record->critid]['max_score'] < $record->score)
+            ) {
                 $rubricarray[$record->critid]['max_score'] = round($record->score, 2);
             }
         }
@@ -401,7 +415,7 @@ class report extends grade_report {
                         $summaryarray[$value->criterionid]['count'] = 0;
                     }
                     $summaryarray[$value->criterionid]['sum']   += $score;
-                    $summaryarray[$value->criterionid]['count'] ++;
+                    $summaryarray[$value->criterionid]['count']++;
                 }
             }
 
@@ -420,7 +434,7 @@ class report extends grade_report {
                     $summaryarray['grade']['count'] = 0;
                 }
                 $summaryarray['grade']['sum']   += $thisgrade;
-                $summaryarray['grade']['count'] ++;
+                $summaryarray['grade']['count']++;
             }
             $row[] = $values[3]->str_grade;
             $table->add_data($row);

@@ -22,8 +22,8 @@
  */
 
 require_once('../../../config.php');
-require_once($CFG->libdir .'/gradelib.php');
-require_once($CFG->dirroot.'/grade/lib.php');
+require_once($CFG->libdir . '/gradelib.php');
+require_once($CFG->dirroot . '/grade/lib.php');
 use gradereport_rubrics\report;
 require_once("select_form.php");
 
@@ -107,9 +107,12 @@ $table = $report->init_table($download);
 
 if (!$table->is_downloading()) {
     $PAGE->set_pagelayout('report');
-    print_grade_page_head($COURSE->id, 'report', 'rubrics',
-        get_string('pluginname', 'gradereport_rubrics') .
-        $OUTPUT->help_icon('pluginname', 'gradereport_rubrics'));
+    print_grade_page_head(
+        $COURSE->id,
+        'report',
+        'rubrics',
+        get_string('pluginname', 'gradereport_rubrics') . $OUTPUT->help_icon('pluginname', 'gradereport_rubrics')
+    );
     $mform->display();
     grade_regrade_final_grades($courseid);
 }
