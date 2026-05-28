@@ -88,7 +88,7 @@ class report extends grade_report {
         $displayemail,
         $activityname,
         $displayfeedback,
-        $page=null
+        $page = null
     ) {
         parent::__construct($courseid, $gpr, $context, $page);
 
@@ -289,7 +289,7 @@ class report extends grade_report {
             $userids[] = $user->id;
         }
 
-        list($insql, $inparams) = $DB->get_in_or_equal($userids);
+        [$insql, $inparams] = $DB->get_in_or_equal($userids);
         $inparams[] = 1;
         $inparams[] = $activity->instance;
         $inparams[] = $activity->context->id;
