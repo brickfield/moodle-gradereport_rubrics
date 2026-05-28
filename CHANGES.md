@@ -3,8 +3,6 @@
 ## 1.405.01 (2026052801)
 
 Replaced manual CSV/Excel download code with `flexible_table`'s built-in download mechanism.
-This resolves a longstanding encoding bug where non-ASCII characters (accented names, non-Latin
-scripts) were corrupted in downloaded files.
 
 - Removed the separate CSV array-building path from `display_table()`. The method now has a
   single code path; `flexible_table` handles both HTML rendering and file downloads internally
