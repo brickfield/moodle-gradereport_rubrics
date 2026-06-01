@@ -107,12 +107,11 @@ $table = $report->init_table($download);
 
 if (!$table->is_downloading()) {
     $PAGE->set_pagelayout('report');
-    print_grade_page_head(
-        $COURSE->id,
-        'report',
-        'rubrics',
-        get_string('pluginname', 'gradereport_rubrics') . $OUTPUT->help_icon('pluginname', 'gradereport_rubrics')
-    );
+    $actionbar = new \core_grades\output\general_action_bar($context,
+        new moodle_url('/grade/report/rubrics/index.php', ['id' => $courseid]), 'report', 'rubrics');
+    $label = get_string('pluginname', 'gradereport_rubrics') .
+        $OUTPUT->help_icon('pluginname', 'gradereport_rubrics');
+    print_grade_page_head($courseid, 'report', 'rubrics', $label, false, false, true, null, null, null, $actionbar);
     $mform->display();
     grade_regrade_final_grades($courseid);
 }
