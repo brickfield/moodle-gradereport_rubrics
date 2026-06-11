@@ -208,7 +208,8 @@ class report extends grade_report {
         // download param from the request — is_downloading() must be called explicitly
         // before setup() so that is_downloading() returns the format string correctly when
         // index.php checks it to decide whether to suppress page output.
-        $filename = clean_filename(($this->activityname ?: 'rubrics') . '_' . $this->courseid);
+        $tmpcourse = get_fast_modinfo($this->courseid)->get_course();
+        $filename = clean_filename(($this->activityname ?: 'rubrics') . '_' . $tmpcourse->shortname);
         $table->is_downloading($download, $filename, get_string('pluginname', 'gradereport_rubrics'));
 
         // Define columns and headers before calling setup().
