@@ -215,6 +215,7 @@ class report extends grade_report {
         // Define columns and headers before calling setup().
         $table->define_columns($columns);
         $table->define_headers($headers);
+        $table->define_header_column('student');
         $table->setup();
 
         return $table;
