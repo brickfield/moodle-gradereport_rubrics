@@ -113,13 +113,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: moodle-plugin-ci grunt --show-lint-warnings --max-lint-warnings 20
 
-      # Currently has no PHPUnit tests.
-      #- name: PHPUnit tests
-      #  if: ${{ !cancelled() }}
-      #  run: |
-      #    moodle-plugin-ci phpunit --fail-on-warning
-      #    cd moodle
-      #    vendor/bin/phpunit --group=plugin_checks --filter=gradereport_rubrics
+      - name: PHPUnit tests
+        if: ${{ !cancelled() }}
+        run: moodle-plugin-ci phpunit --fail-on-warning
 
       - name: Behat features
         id: behat
