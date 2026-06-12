@@ -1,5 +1,9 @@
 # Changelog — gradereport_rubrics
 
+## 1.405.03 (2026061101)
+
+Updated README.md.
+
 ## 1.405.02 (2026061100)
 
 Removed dead code; added PHPUnit test suite.
