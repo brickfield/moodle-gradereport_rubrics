@@ -32,8 +32,7 @@ namespace gradereport_rubrics;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers     \gradereport_rubrics\report
  */
-class report_test extends \advanced_testcase {
-
+final class report_test extends \advanced_testcase {
     /**
      * Test that GRADABLES defines the expected activity types with required keys.
      */
@@ -69,8 +68,8 @@ class report_test extends \advanced_testcase {
 
         $this->assertNotEmpty($enrolled, 'Enrolled students must be returned');
         $enrolledids = array_keys($enrolled);
-        $this->assertContains($student1->id, $enrolledids, 'Student 1 must appear in enrolled list');
-        $this->assertContains($student2->id, $enrolledids, 'Student 2 must appear in enrolled list');
+        $this->assertContains(intval($student1->id), $enrolledids, 'Student 1 must appear in enrolled list');
+        $this->assertContains(intval($student2->id), $enrolledids, 'Student 2 must appear in enrolled list');
     }
 
     /**
@@ -87,8 +86,8 @@ class report_test extends \advanced_testcase {
         $enrolled = get_enrolled_users($context, 'mod/assign:submit');
 
         $enrolledids = array_keys($enrolled);
-        $this->assertContains($student->id, $enrolledids, 'Student must be in the enrolled list');
-        $this->assertNotContains($teacher->id, $enrolledids, 'Teacher must not appear in the student-capability enrolled list');
+        $this->assertContains(intval($student->id), $enrolledids, 'Student must be in the enrolled list');
+        $this->assertNotContains(intval($teacher->id), $enrolledids, 'Teacher must not appear in the student enrolled list');
     }
 
     /**
@@ -197,10 +196,10 @@ class report_test extends \advanced_testcase {
 
         // Levels for criterion 1.
         $DB->insert_record('gradingform_rubric_levels', (object)[
-            'criterionid' => $crit1id, 'score' => 0,  'definition' => 'Poor',      'definitionformat' => FORMAT_HTML,
+            'criterionid' => $crit1id, 'score' => 0, 'definition' => 'Poor', 'definitionformat' => FORMAT_HTML,
         ]);
         $DB->insert_record('gradingform_rubric_levels', (object)[
-            'criterionid' => $crit1id, 'score' => 50, 'definition' => 'Good',      'definitionformat' => FORMAT_HTML,
+            'criterionid' => $crit1id, 'score' => 50, 'definition' => 'Good', 'definitionformat' => FORMAT_HTML,
         ]);
         $DB->insert_record('gradingform_rubric_levels', (object)[
             'criterionid' => $crit1id, 'score' => 100, 'definition' => 'Excellent', 'definitionformat' => FORMAT_HTML,
@@ -208,10 +207,10 @@ class report_test extends \advanced_testcase {
 
         // Levels for criterion 2.
         $DB->insert_record('gradingform_rubric_levels', (object)[
-            'criterionid' => $crit2id, 'score' => 0,  'definition' => 'Incomplete', 'definitionformat' => FORMAT_HTML,
+            'criterionid' => $crit2id, 'score' => 0, 'definition' => 'Incomplete', 'definitionformat' => FORMAT_HTML,
         ]);
         $DB->insert_record('gradingform_rubric_levels', (object)[
-            'criterionid' => $crit2id, 'score' => 30, 'definition' => 'Complete',   'definitionformat' => FORMAT_HTML,
+            'criterionid' => $crit2id, 'score' => 30, 'definition' => 'Complete', 'definitionformat' => FORMAT_HTML,
         ]);
 
         // Run the header-column query from init_table().
@@ -228,9 +227,9 @@ class report_test extends \advanced_testcase {
 
         $critarray = array_values($criteria);
         $this->assertSame('Criterion One', $critarray[0]->description);
-        $this->assertSame('100', $critarray[0]->max_score, 'Max score for criterion 1 must be 100');
+        $this->assertSame(100, intval($critarray[0]->max_score), 'Max score for criterion 1 must be 100');
         $this->assertSame('Criterion Two', $critarray[1]->description);
-        $this->assertSame('30', $critarray[1]->max_score, 'Max score for criterion 2 must be 30');
+        $this->assertSame(30, intval($critarray[1]->max_score), 'Max score for criterion 2 must be 30');
     }
 
     /**
@@ -332,15 +331,16 @@ class report_test extends \advanced_testcase {
         $student = $this->getDataGenerator()->create_and_enrol($course, 'student');
 
         // Build a minimal rubricarray with one criterion and one level.
+        $tmp = ['id' => 101, 'criterionid' => 99, 'score' => 10, 'definition' => 'Good', 'definitionformat' => FORMAT_HTML];
         $rubricarray = [
             99 => [
                 'crit_desc' => 'Test criterion',
                 'max_score' => 10.0,
-                101        => (object)['id' => 101, 'criterionid' => 99, 'score' => 10, 'definition' => 'Good', 'definitionformat' => FORMAT_HTML],
+                101 => (object)$tmp,
             ],
         ];
 
-        // $data format: [userid => [fullname, email, fillings, grade_object, idnumber]].
+        // Example $data format: [userid => [fullname, email, fillings, grade_object, idnumber]].
         $gradeobj = (object)['str_grade' => '-', 'feedback' => ''];
         $data = [
             $student->id => [fullname($student), $student->email, [], $gradeobj, $student->idnumber],
@@ -366,11 +366,9 @@ class report_test extends \advanced_testcase {
         $output = ob_get_clean();
 
         // The student's name must appear in the rendered HTML.
-        $this->assertStringContainsString(fullname($student), $output,
-            'Student name must appear in the table output');
+        $this->assertStringContainsString(fullname($student), $output, 'Student name must appear in the table output');
         // A nograde placeholder must appear for the ungraded criterion column.
         $nograde = get_string('nograde', 'gradereport_rubrics');
-        $this->assertStringContainsString($nograde, $output,
-            'A nograde placeholder must appear when the student has no rubric fillings');
+        $this->assertStringContainsString($nograde, $output, 'A nograde placeholder must appear when student has no results');
     }
 }

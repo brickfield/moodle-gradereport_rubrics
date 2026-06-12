@@ -313,7 +313,6 @@ class report extends grade_report {
 
         $userdata = $DB->get_recordset_sql($sql, $inparams);
         $udataarray = [];
-        // TODO Need to look into multiple attempts data set handling too.
         foreach ($userdata as $udata) {
             if (!isset($udataarray[$udata->userid])) {
                 $udataarray[$udata->userid] = [];
