@@ -13,6 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
 namespace gradereport_rubrics;
 
 defined('MOODLE_INTERNAL') || die();
@@ -20,14 +21,10 @@ defined('MOODLE_INTERNAL') || die();
 use grade_report;
 use grade_item;
 use html_writer;
-use html_table;
-use html_table_cell;
-use html_table_row;
+use flexible_table;
 use moodle_url;
-use MoodleExcelWorkbook;
-use csv_export_writer;
 use context_course;
-require_once($CFG->dirroot.'/grade/report/lib.php');
+require_once($CFG->dirroot . '/grade/report/lib.php');
 
 /**
  * Provides rubric report render functionality.
@@ -38,17 +35,10 @@ require_once($CFG->dirroot.'/grade/report/lib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class report extends grade_report {
-
     /** @var int Activity id. */
     public $activityid = 0;
     /** @var string Activity name. */
     public $activityname = '';
-    /** @var string Download format. */
-    public $format = '';
-    /** @var bool Whether the download is excel. */
-    public $excel = false;
-    /** @var bool Whether the download is csv. */
-    public $csv = false;
     /** @var bool Whether to display levels. */
     public $displaylevel = false;
     /** @var bool Whether to display remarks. */
@@ -71,22 +61,12 @@ class report extends grade_report {
     ];
 
     /**
-     * Hold the contructed report for display
-     *
-     * @var mixed
-     */
-    public $output;
-
-    /**
-     * Initalize a report object
+     * Initialise a report object
      *
      * @param int $courseid
      * @param object $gpr
      * @param string $context
      * @param int $activityid
-     * @param string $format
-     * @param bool $excel
-     * @param bool $csv
      * @param bool $displaylevel
      * @param bool $displayremark
      * @param bool $displaysummary
@@ -96,21 +76,29 @@ class report extends grade_report {
      * @param bool $displayfeedback
      * @param int|null $page
      */
-    public function __construct($courseid, $gpr, $context, $activityid, $format, $excel, $csv, $displaylevel,
-            $displayremark, $displaysummary, $displayidnumber, $displayemail, $activityname,
-            $displayfeedback, $page=null) {
+    public function __construct(
+        $courseid,
+        $gpr,
+        $context,
+        $activityid,
+        $displaylevel,
+        $displayremark,
+        $displaysummary,
+        $displayidnumber,
+        $displayemail,
+        $activityname,
+        $displayfeedback,
+        $page = null
+    ) {
         parent::__construct($courseid, $gpr, $context, $page);
 
-        $this->activityid = $activityid;
-        $this->format = $format;
-        $this->excel = $excel;
-        $this->csv = $csv;
-        $this->displaylevel = $displaylevel;
-        $this->displayremark = $displayremark;
-        $this->displaysummary = $displaysummary;
+        $this->activityid      = $activityid;
+        $this->displaylevel    = $displaylevel;
+        $this->displayremark   = $displayremark;
+        $this->displaysummary  = $displaysummary;
         $this->displayidnumber = $displayidnumber;
-        $this->displayemail = $displayemail;
-        $this->activityname = $activityname;
+        $this->displayemail    = $displayemail;
+        $this->activityname    = $activityname;
         $this->displayfeedback = $displayfeedback;
 
         $this->coursegradeitem = grade_item::fetch_course_item($this->courseid);
@@ -136,38 +124,136 @@ class report extends grade_report {
     }
 
     /**
+     * Initialise, configure, and set up the flexible_table instance.
+     *
+     * This method resolves the full column list — including dynamic rubric criterion
+     * columns — and calls setup() before returning. That means is_downloading() is
+     * usable immediately after this call, which allows index.php to suppress page HTML
+     * on download requests before any output is sent. flexible_table::setup() sends the
+     * file response headers on download requests; those headers must arrive before any
+     * HTML is printed, so setup() must be called here, not deferred to display_table().
+     *
+     * @param string $download
+     * @return flexible_table
+     */
+    public function init_table(string $download = ''): flexible_table {
+        global $DB;
+
+        $columns = ['student'];
+        $headers = [get_string('student', 'gradereport_rubrics')];
+
+        if ($this->displayidnumber) {
+            $columns[] = 'idnumber';
+            $headers[] = get_string('studentid', 'gradereport_rubrics');
+        }
+        if ($this->displayemail) {
+            $columns[] = 'email';
+            $headers[] = get_string('studentemail', 'gradereport_rubrics');
+        }
+
+        // Resolve rubric criterion columns now so setup() can be called before any output.
+        // This is a lightweight query — only criterion descriptions are needed for headers.
+        if ($this->activityid != 0) {
+            $areasql = "SELECT gra.id as areaid FROM {course_modules} cm
+                     LEFT JOIN {context} con ON cm.id = con.instanceid
+                     LEFT JOIN {grading_areas} gra ON gra.contextid = con.id
+                         WHERE cm.course = ? AND cm.id = ? AND gra.activemethod = ?";
+            $area = $DB->get_record_sql($areasql, [$this->courseid, $this->activityid, 'rubric']);
+
+            if ($area) {
+                $critsql = "SELECT crit.id, crit.description, MAX(lev.score) AS max_score
+                              FROM {grading_definitions} def
+                         LEFT JOIN {gradingform_rubric_criteria} crit ON crit.definitionid = def.id
+                         LEFT JOIN {gradingform_rubric_levels} lev ON lev.criterionid = crit.id
+                             WHERE def.areaid = ?
+                          GROUP BY crit.id, crit.description, crit.sortorder
+                          ORDER BY crit.sortorder";
+                $criteria = $DB->get_records_sql($critsql, [$area->areaid]);
+
+                foreach ($criteria as $crit) {
+                    $columns[] = 'criterion_' . $crit->id;
+                    $headers[] = get_string('criterion_label', 'gradereport_rubrics', (object)[
+                        'crit_desc' => $crit->description,
+                        'max_score' => round($crit->max_score, 2),
+                    ]);
+                }
+            }
+        }
+
+        if ($this->displayremark && $this->displayfeedback) {
+            $columns[] = 'feedback';
+            $headers[] = get_string('feedback', 'gradereport_rubrics');
+        }
+        $columns[] = 'grade';
+        $headers[] = get_string('grade', 'gradereport_rubrics');
+
+        $table = new flexible_table('gradereport-rubrics-' . $this->activityid);
+        $table->define_baseurl(new moodle_url('/grade/report/rubrics/index.php', [
+            'id'              => $this->courseid,
+            'activityid'      => $this->activityid,
+            'displaylevel'    => (int)$this->displaylevel,
+            'displayremark'   => (int)$this->displayremark,
+            'displaysummary'  => (int)$this->displaysummary,
+            'displayemail'    => (int)$this->displayemail,
+            'displayidnumber' => (int)$this->displayidnumber,
+        ]));
+        $table->set_attribute('class', 'rubrics generaltable');
+        $table->set_attribute('summary', get_string('pluginname', 'gradereport_rubrics') . ': ' . $this->activityname);
+        $table->sortable(false);
+        $table->collapsible(false);
+        $table->show_download_buttons_at([TABLE_P_BOTTOM]);
+
+        // In Moodle 5.x, is_downloading() is the correct way to both mark the table as
+        // downloadable and signal the active download format. setup() no longer reads the
+        // download param from the request — is_downloading() must be called explicitly
+        // before setup() so that is_downloading() returns the format string correctly when
+        // index.php checks it to decide whether to suppress page output.
+        $tmpcourse = get_fast_modinfo($this->courseid)->get_course();
+        $filename = clean_filename(($this->activityname ?: 'rubrics') . '_' . $tmpcourse->shortname);
+        $table->is_downloading($download, $filename, get_string('pluginname', 'gradereport_rubrics'));
+
+        // Define columns and headers before calling setup().
+        $table->define_columns($columns);
+        $table->define_headers($headers);
+        $table->define_header_column('student');
+        $table->setup();
+
+        return $table;
+    }
+
+    /**
      * Generate and display the rubric report
      *
-     * @return string|null
+     * @param flexible_table $table The table instance returned by init_table(), after
+     *                              page output decisions have been made in index.php.
+     * @return void
      */
-    public function show() {
-        global $DB, $CFG, $OUTPUT;
+    public function show(flexible_table $table) {
+        global $DB;
 
-        $output = "";
         $activityid = $this->activityid;
         if ($activityid == 0) {
-            return($output);
-        } // Disabling all activities option.
+            return;
+        }
 
-        // Step one, find all enrolled users to course.
+        // Find all enrolled users in the course.
         $coursecontext = context_course::instance($this->courseid);
         $users = get_enrolled_users($coursecontext, 'mod/assign:submit', 0, 'u.*', 'u.lastname');
-        if (!$users) { // If no users were returned.
-            return (!$this->csv) ? get_string('err_norecords', 'gradereport_rubrics') : $output;
+        if (!$users) {
+            if (!$table->is_downloading()) {
+                echo get_string('err_norecords', 'gradereport_rubrics');
+            }
+            return;
         }
-        $data = [];
 
-        // Process relevant grading area id from activityid and courseid.
+        // Find the grading area for this activity.
         $areasql = "SELECT gra.id as areaid FROM {course_modules} cm
                  LEFT JOIN {context} con on cm.id=con.instanceid
                  LEFT JOIN {grading_areas} gra on gra.contextid = con.id
                      WHERE cm.course = ? AND cm.id = ? AND gra.activemethod = ?";
         $area = $DB->get_record_sql($areasql, [$this->courseid, $activityid, 'rubric']);
 
-         // Step 2, find any rubrics related to activity.
-        $rubricarray = [];
-
-        // Step 2, find any rubrics related to activity.
+        // Find rubric criteria and levels for this activity.
         $sql = "SELECT crit.id as critid, crit.description, lev.id, lev.score, lev.criterionid, lev.definition, lev.definitionformat
                   FROM {grading_definitions} def
              LEFT JOIN {gradingform_rubric_criteria} crit ON crit.definitionid = def.id
@@ -177,21 +263,26 @@ class report extends grade_report {
         $records = $DB->get_recordset_sql($sql, [$area->areaid]);
 
         $rubricarray = [];
-
         foreach ($records as $record) {
-            $rubricarray[$record->critid][$record->id] = (object)['id' => $record->id, 'criterionid' => $record->criterionid,
-                'score' => $record->score, 'definition' => $record->definition, 'definitionformat' => $record->definitionformat];
+            $rubricarray[$record->critid][$record->id] = (object)[
+                'id'               => $record->id,
+                'criterionid'      => $record->criterionid,
+                'score'            => $record->score,
+                'definition'       => $record->definition,
+                'definitionformat' => $record->definitionformat,
+            ];
             $rubricarray[$record->critid]['crit_desc'] = $record->description;
 
-            if (!isset($rubricarray[$record->critid]['max_score'])
-                    || ($rubricarray[$record->critid]['max_score'] < $record->score)) {
+            if (
+                !isset($rubricarray[$record->critid]['max_score'])
+                || ($rubricarray[$record->critid]['max_score'] < $record->score)
+            ) {
                 $rubricarray[$record->critid]['max_score'] = round($record->score, 2);
             }
         }
         $records->close();
 
-        // Deal with multiple activities enabled for advanced grading.
-        // Uses an internal const $GRADABLES for mapping relevant table, field and offset values.
+        // Map activity type to its DB table and field via GRADABLES.
         $activity = get_fast_modinfo($this->courseid)->cms[$activityid];
         $gradable = self::GRADABLES[$activity->modname];
 
@@ -200,18 +291,18 @@ class report extends grade_report {
             $userids[] = $user->id;
         }
 
-        list($insql, $inparams) = $DB->get_in_or_equal($userids);
+        [$insql, $inparams] = $DB->get_in_or_equal($userids);
         $inparams[] = 1;
         $inparams[] = $activity->instance;
         $inparams[] = $activity->context->id;
 
-        $table = $gradable['table'];
-        $field = $gradable['field'];
-        $orderextra = ($table == 'assign_grades') ? ", act.attemptnumber DESC" : "";
+        $dbtable  = $gradable['table'];
+        $field     = $gradable['field'];
+        $orderextra = ($dbtable == 'assign_grades') ? ", act.attemptnumber DESC" : "";
 
         $sql = "SELECT act.id, act.userid, fill.id, def.id as defid, act.grade,
                        fill.instanceid, fill.criterionid, fill.levelid, fill.remark
-                  FROM {". $table . "} act
+                  FROM {" . $dbtable . "} act
              LEFT JOIN {grading_instances} inst ON act.id = inst.itemid
              LEFT JOIN {grading_definitions} def ON inst.definitionid = def.id
              LEFT JOIN {grading_areas} area ON def.areaid = area.id
@@ -222,8 +313,6 @@ class report extends grade_report {
 
         $userdata = $DB->get_recordset_sql($sql, $inparams);
         $udataarray = [];
-        // Putting $userdata from separate criteria query records into a hashed array per userid.
-        // TODO Need to look into multiple attempts data set handling too.
         foreach ($userdata as $udata) {
             if (!isset($udataarray[$udata->userid])) {
                 $udataarray[$udata->userid] = [];
@@ -234,274 +323,143 @@ class report extends grade_report {
 
         $fullgrade = \grade_get_grades($this->courseid, 'mod', $activity->modname, $activity->instance, $userids);
 
+        $data = [];
         foreach ($users as $user) {
-            $fullname = fullname($user);
-            $userd = isset($udataarray[$user->id]) ? $udataarray[$user->id] : [];
-
-            $offset = $gradable['itemoffset'];
-            $feedback = $fullgrade->items[$offset]->grades[$user->id];
+            $fullname  = fullname($user);
+            $userd     = isset($udataarray[$user->id]) ? $udataarray[$user->id] : [];
+            $offset    = $gradable['itemoffset'];
+            $feedback  = $fullgrade->items[$offset]->grades[$user->id];
             $data[$user->id] = [$fullname, $user->email, $userd, $feedback, $user->idnumber];
         }
 
         if (count($data) == 0) {
-            $output = get_string('err_norecords', 'gradereport_rubrics');
-        } else {
-
-            $csvlink = new moodle_url('/grade/report/rubrics/index.php', [
-                'id' => $this->course->id,
-                'activityid' => $this->activityid,
-                'displaylevl' => $this->displaylevel,
-                'displayremark' => $this->displayremark,
-                'displaysummary' => $this->displaysummary,
-                'displayemail' => $this->displayemail,
-                'displayidnumber' => $this->displayidnumber,
-                'format' => 'csv',
-            ]);
-
-            $xlsxlink = new moodle_url('/grade/report/rubrics/index.php', [
-                'id' => $this->course->id,
-                'activityid' => $this->activityid,
-                'displaylevl' => $this->displaylevel,
-                'displayremark' => $this->displayremark,
-                'displaysummary' => $this->displaysummary,
-                'displayemail' => $this->displayemail,
-                'displayidnumber' => $this->displayidnumber,
-                'format' => 'excelcsv',
-            ]);
-            // Links for download.
-            if ((!$this->csv)) {
-                $output .= html_writer::start_tag('ul', ['class' => 'rubrics-actions']);
-                $output .= html_writer::start_tag('li');
-                $output .= html_writer::link($csvlink, get_string('csvdownload', 'gradereport_rubrics'));
-                $output .= '&nbsp;' . $OUTPUT->help_icon('download', 'gradereport_rubrics');
-                $output .= html_writer::end_tag('il');
-                $output .= html_writer::start_tag('li');
-                $output .= html_writer::link($xlsxlink, get_string('excelcsvdownload', 'gradereport_rubrics'));
-                $output .= '&nbsp;' . $OUTPUT->help_icon('download', 'gradereport_rubrics');
-                $output .= html_writer::end_tag('il');
-                $output .= html_writer::end_tag('ul');
-
-                // Put data into table.
-                $output .= $this->display_table($data, $rubricarray, false);
-            } else {
-                // Put data into array, not string, for csv download.
-                $output = $this->display_table($data, $rubricarray, true);
+            if (!$table->is_downloading()) {
+                echo get_string('err_norecords', 'gradereport_rubrics');
             }
+            return;
         }
 
-        $this->output = $output;
-        if (!$this->csv) {
-            echo $output;
-        } else {
-            if ($this->excel) {
-                require_once("$CFG->libdir/excellib.class.php");
-
-                $filename = get_string('filename', 'gradereport_rubrics', $this->activityname) . ".xls";
-                $downloadfilename = clean_filename($filename);
-                // Creating a workbook.
-                $workbook = new MoodleExcelWorkbook("-");
-                // Sending HTTP headers.
-                $workbook->send($downloadfilename);
-                // Adding the worksheet.
-                $myxls = $workbook->add_worksheet($filename);
-
-                $row = 0;
-                // Running through data.
-                foreach ($output as $value) {
-                    $col = 0;
-                    foreach ($value as $newvalue) {
-                        $myxls->write_string($row, $col, $newvalue);
-                        $col++;
-                    }
-                    $row++;
-                }
-
-                $workbook->close();
-                exit;
-            } else {
-                require_once($CFG->libdir .'/csvlib.class.php');
-
-                $filename = get_string('filename', 'gradereport_rubrics', $this->activityname);
-                $filename = clean_filename($filename);
-                $csvexport = new csv_export_writer();
-                $csvexport->set_filename($filename);
-
-                foreach ($output as $value) {
-                    $csvexport->add_data($value);
-                }
-                $csvexport->download_file();
-
-                exit;
-            }
-        }
+        $this->display_table($table, $data, $rubricarray);
     }
 
     /**
-     * Display the table
+     * Populate and render the rubric data table.
+     * flexible_table handles both HTML display and file downloads via its built-in
+     * download mechanism, including correct encoding for non-ASCII content.
      *
-     * @param array $data
-     * @param array $rubricarray
-     * @param bool $csv
-     * @return array|string
+     * @param flexible_table $table  Configured table instance from init_table()
+     * @param array $data            Keyed by userid: [fullname, email, rubric fillings, grade object, idnumber]
+     * @param array $rubricarray     Rubric criteria and levels, keyed by criterion id
+     * @return void Outputs directly in all modes
      */
-    public function display_table($data, $rubricarray, $csv) {
+    public function display_table(flexible_table $table, array $data, array $rubricarray) {
         $summaryarray = [];
-        $csvarray = [];
 
-        $output = html_writer::start_tag('div', ['class' => 'rubrics']);
-        $table = new html_table();
-        $table->head = [get_string('student', 'gradereport_rubrics')];
-        if ($this->displayidnumber) {
-            $table->head[] = get_string('studentid', 'gradereport_rubrics');
-        }
-        if ($this->displayemail) {
-            $table->head[] = get_string('studentemail', 'gradereport_rubrics');
-        }
-        foreach ($rubricarray as $rkey => $rvalue) {
-            if ($csv) {
-                $table->head[] = get_string('criterion_label', 'gradereport_rubrics', (object)$rubricarray[$rkey]);
-            } else {
-                $table->head[] = get_string('criterion_label_break', 'gradereport_rubrics', (object)$rubricarray[$rkey]);
-            }
-        }
-        if ($this->displayremark && $this->displayfeedback) {
-            $table->head[] = get_string('feedback', 'gradereport_rubrics');
-        }
-        $table->head[] = get_string('grade', 'gradereport_rubrics');
-        $csvarray[] = $table->head;
-        $table->data = [];
-        $table->data[] = new html_table_row();
+        // Columns, headers, and setup() were handled in init_table() so that
+        // is_downloading() is available before any page HTML is output.
+        $downloading = $table->is_downloading();
 
         foreach ($data as $key => $values) {
-            $csvrow = [];
-            $row = new html_table_row();
-            $cell = new html_table_cell();
-            $cell->text = $values[0]; // Student name.
-            $csvrow[] = $values[0];
-            $row->cells[] = $cell;
+            $row = [];
+            $row[] = $values[0]; // Student name.
             if ($this->displayidnumber) {
-                $cell = new html_table_cell();
-                $cell->text = $values[4]; // Student id.
-                $row->cells[] = $cell;
-                $csvrow[] = $values[4];
+                $row[] = $values[4];
             }
             if ($this->displayemail) {
-                $cell = new html_table_cell();
-                $cell->text = $values[1]; // Student email.
-                $row->cells[] = $cell;
-                $csvrow[] = $values[1];
+                $row[] = $values[1];
             }
+
             $thisgrade = get_string('nograde', 'gradereport_rubrics');
-            if (count($values[2]) == 0) { // Students with no marks, add fillers.
+
+            if (count($values[2]) == 0) {
                 foreach ($rubricarray as $rkey => $rvalue) {
-                    $cell = new html_table_cell();
-                    $cell->text = get_string('nograde', 'gradereport_rubrics');
-                    $row->cells[] = $cell;
-                    $csvrow[] = $thisgrade;
+                    $row[] = get_string('nograde', 'gradereport_rubrics');
                 }
             }
+
             foreach ($values[2] as $value) {
                 if (is_object($value)) {
-                    $cell = new html_table_cell();
                     $score = $rubricarray[$value->criterionid][$value->levelid]->score ?? 0;
                     $score = round($score, 2);
                     $critgrade = get_string('criterion_grade', 'gradereport_rubrics', $score);
-                    $cell->text = "<div class=\"rubrics_points\">" . $critgrade . "</div>";
-                    $csvtext = $critgrade;
-                    if ($this->displaylevel) {
-                        $level = $rubricarray[$value->criterionid][$value->levelid]->definition ??
-                            get_string('notset', 'gradereport_rubrics');
-                        $critlevel = get_string('criterion_level', 'gradereport_rubrics', $level);
-                        $cell->text .= "<div class=\"rubrics_level\">" . $critlevel . "</div>";
-                        $csvtext .= $critlevel . " - ";
+
+                    if ($downloading) {
+                        // Plain text for download — no HTML markup.
+                        $cellcontent = $critgrade;
+                        if ($this->displaylevel) {
+                            $level = $rubricarray[$value->criterionid][$value->levelid]->definition ??
+                                get_string('notset', 'gradereport_rubrics');
+                            $cellcontent .= ' ' . get_string('criterion_level', 'gradereport_rubrics', $level);
+                        }
+                        if ($this->displayremark) {
+                            $cellcontent .= ' ' . strip_tags($value->remark);
+                        }
+                    } else {
+                        // HTML for on-screen display.
+                        $cellcontent = html_writer::div($critgrade, 'rubrics_points');
+                        if ($this->displaylevel) {
+                            $level = $rubricarray[$value->criterionid][$value->levelid]->definition ??
+                                get_string('notset', 'gradereport_rubrics');
+                            $critlevel = get_string('criterion_level', 'gradereport_rubrics', $level);
+                            $cellcontent .= html_writer::div($critlevel, 'rubrics_level');
+                        }
+                        if ($this->displayremark) {
+                            $cellcontent .= $value->remark;
+                        }
                     }
-                    if ($this->displayremark) {
-                        $cell->text .= $value->remark;
-                        $csvtext .= $value->remark;
-                    }
-                    $row->cells[] = $cell;
-                    $thisgrade = round($value->grade, 2); // Grade cell.
+
+                    $row[] = $cellcontent;
+                    $thisgrade = round($value->grade, 2);
 
                     if (!array_key_exists($value->criterionid, $summaryarray)) {
-                        $summaryarray[$value->criterionid]["sum"] = 0;
-                        $summaryarray[$value->criterionid]["count"] = 0;
+                        $summaryarray[$value->criterionid]['sum']   = 0;
+                        $summaryarray[$value->criterionid]['count'] = 0;
                     }
-                    $summaryarray[$value->criterionid]["sum"] += $score;
-                    $summaryarray[$value->criterionid]["count"]++;
-
-                    $csvrow[] = $csvtext;
+                    $summaryarray[$value->criterionid]['sum']   += $score;
+                    $summaryarray[$value->criterionid]['count']++;
                 }
             }
 
             if ($this->displayremark && $this->displayfeedback) {
-                $cell = new html_table_cell();
+                $feedbacktext = '';
                 if (is_object($values[3]) && (!empty($values[3]->feedback))) {
-                    $cell->text = strip_tags($values[3]->feedback);
-                } // Feedback cell.
-                if (empty($cell->text)) {
-                    $cell->text = get_string('nograde', 'gradereport_rubrics');
+                    $feedbacktext = strip_tags($values[3]->feedback);
                 }
-                $row->cells[] = $cell;
-                $csvrow[] = $cell->text;
-                $summaryarray["feedback"]["sum"] = get_string('feedback', 'gradereport_rubrics');
+                $row[] = $feedbacktext ?: get_string('nograde', 'gradereport_rubrics');
+                $summaryarray['feedback']['sum'] = get_string('feedback', 'gradereport_rubrics');
             }
 
-            $cell = new html_table_cell();
-            $cell->text = $values[3]->str_grade; // Grade for display.
-            $csvrow[] = $cell->text;
             if ($thisgrade != get_string('nograde', 'gradereport_rubrics')) {
-                if (!array_key_exists("grade", $summaryarray)) {
-                    $summaryarray["grade"]["sum"] = 0;
-                    $summaryarray["grade"]["count"] = 0;
+                if (!array_key_exists('grade', $summaryarray)) {
+                    $summaryarray['grade']['sum']   = 0;
+                    $summaryarray['grade']['count'] = 0;
                 }
-                $summaryarray["grade"]["sum"] += $thisgrade;
-                $summaryarray["grade"]["count"]++;
+                $summaryarray['grade']['sum']   += $thisgrade;
+                $summaryarray['grade']['count']++;
             }
-            $row->cells[] = $cell;
-            $table->data[] = $row;
-            $csvarray[] = $csvrow;
+            $row[] = $values[3]->str_grade;
+            $table->add_data($row);
         }
 
         // Summary row.
         if ($this->displaysummary) {
-            $row = new html_table_row();
-            $cell = new html_table_cell();
-            $cell->text = get_string('summary', 'gradereport_rubrics');
-            $row->cells[] = $cell;
-            $csvsummaryrow = [get_string('summary', 'gradereport_rubrics')];
-            if ($this->displayidnumber) { // Adding placeholder cells.
-                $cell = new html_table_cell();
-                $cell->text = " ";
-                $row->cells[] = $cell;
-                $csvsummaryrow[] = $cell->text;
+            $summaryrow = [get_string('summary', 'gradereport_rubrics')];
+            if ($this->displayidnumber) {
+                $summaryrow[] = '';
             }
-            if ($this->displayemail) { // Adding placeholder cells.
-                $cell = new html_table_cell();
-                $cell->text = " ";
-                $row->cells[] = $cell;
-                $csvsummaryrow[] = $cell->text;
+            if ($this->displayemail) {
+                $summaryrow[] = '';
             }
             foreach ($summaryarray as $sum) {
-                $cell = new html_table_cell();
-                if ($sum["sum"] == get_string('feedback', 'gradereport_rubrics')) {
-                    $cell->text = " ";
+                if ($sum['sum'] == get_string('feedback', 'gradereport_rubrics')) {
+                    $summaryrow[] = '';
                 } else {
-                    $cell->text = round($sum["sum"] / $sum["count"], 2);
+                    $summaryrow[] = round($sum['sum'] / $sum['count'], 2);
                 }
-                $row->cells[] = $cell;
-                $csvsummaryrow[] = $cell->text;
             }
-            $table->data[] = $row;
-            $csvarray[] = $csvsummaryrow;
+            $table->add_data($summaryrow);
         }
 
-        if ($this->csv) {
-            $output = $csvarray;
-        } else {
-            $output .= html_writer::table($table);
-            $output .= html_writer::end_tag('div');
-        }
-
-        return $output;
+        $table->finish_output();
     }
 }
