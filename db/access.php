@@ -24,14 +24,14 @@ defined('MOODLE_INTERNAL') || die();
 $capabilities = [
 
     'gradereport/rubrics:view' => [
-        'riskbitmask' => '',
+        'riskbitmask' => RISK_PERSONAL,
         'captype' => 'read',
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => [
             'student' => CAP_PREVENT,
             'teacher' => CAP_ALLOW,
             'editingteacher' => CAP_ALLOW,
-            'manager' => CAP_ALLOW
-        ]
+            'manager' => CAP_ALLOW,
+        ],
     ],
 ];
