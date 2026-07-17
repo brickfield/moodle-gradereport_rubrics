@@ -24,7 +24,7 @@ defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'gradereport_rubrics';
 $plugin->release = '1.405.02';
-$plugin->version = 2026052802;
+$plugin->version = 2026052803;
 $plugin->requires  = 2024100700; // Moodle 4.5 and higher.
 $plugin->maturity  = MATURITY_STABLE;
 $plugin->supported = [405, 502];
