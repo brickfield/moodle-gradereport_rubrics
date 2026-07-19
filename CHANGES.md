@@ -1,22 +1,47 @@
 # Changelog — gradereport_rubrics
 
+## 1.405.04 (2026071901)
+### Bug fixes
+
+- Report now uses core's 'setup_groups()' and limits results to the viewer's group. Users
+  in no group (without 'moodle/site:accessallgroups') see "No records found" instead of
+  the full course. Editing teachers/managers are unaffected.
+- Added a group selector, preserving activity and display settings when switching groups.
+- Constrained '{context}' joins to 'CONTEXT_MODULE' (previously too broad, though not
+  exploitable in practice).
+- Added PHPUnit coverage for group scoping, 'accessallgroups', and no-group cases.
+
+## 1.405.03 (2026071900)
+### Bug fixes
+
+- Rubric text in the on-screen report is now HTML-escaped. HTML in a
+criterion description, level definition, or grading remark was previously rendered
+as markup.
+- Escaped criterion descriptions, level definitions, and grading remarks in the HTML
+  display path (CSV/Excel export was already safe).
+- Also escaped student name, ID number, and email for consistency.
+- Validated 'activityid' against the course's activities/types and checked the grading
+  area before use — invalid values now show "No records found" instead of errors.
+- Guarded overall-grade lookup against unexpected grade-item layouts.
+- Added PHPUnit coverage for escaping and invalid 'activityid' handling.
+
 ## 1.405.02 (2026052802)
 
 Removed dead code; added PHPUnit test suite.
 
-- Deleted `classes/csv.php`. The `csv` class was made redundant by the 1.405.01 refactor to
-  `flexible_table` downloads and was no longer called anywhere in the plugin.
-- Added `tests/report_test.php` with six PHPUnit integration tests covering:
-  - The `GRADABLES` constant structure;
+- Deleted 'classes/csv.php'. The 'csv' class was made redundant by the 1.405.01 refactor to
+  'flexible_table' downloads and was no longer called anywhere in the plugin.
+- Added 'tests/report_test.php' with six PHPUnit integration tests covering:
+  - The 'GRADABLES' constant structure;
   - Enrolled-user lookup (students found, teachers excluded);
   - Grading area SQL with and without a rubric area present;
   - Rubric criteria and max-score query;
-  - `Rubricarray` structure built from the criteria/levels recordset;
-  - And `display_table()` output for a student with no rubric fillings.
+  - 'Rubricarray' structure built from the criteria/levels recordset;
+  - And 'display_table()' output for a student with no rubric fillings.
 
 ## 1.405.01 (2026052801)
 
-Replaced manual CSV/Excel download code with `flexible_table`'s built-in download mechanism.
+Replaced manual CSV/Excel download code with flexible_table's built-in download mechanism.
 
 - Removed various separate CSV array-building paths due to flexible_table refactor.
 - Maximum Moodle version raised to 5.2.

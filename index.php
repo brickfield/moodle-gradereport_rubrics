@@ -62,11 +62,7 @@ $displayfeedback = false;
 // Set up the form.
 $mform = new report_rubrics_select_form(null, ['courseid' => $courseid, 'activityid' => $activityid]);
 
-// Only process the activity-select form when this is not a flexible_table download request.
-// The download button submits a POST with a 'download' param; if mform->get_data() consumes
-// that POST and redirect() fires, the download request is discarded before the table can
-// handle it. Skipping form processing on download requests lets flexible_table's setup()
-// see the POST intact and send the correct file response headers.
+// Only process the activity-select form when not a download request.
 if (empty($download) && ($formdata = $mform->get_data())) {
     $activityid = $formdata->activityid;
     $config = get_config('gradereport_rubrics');
@@ -77,9 +73,13 @@ if (empty($download) && ($formdata = $mform->get_data())) {
 }
 
 if ($activityid != 0) {
-    $cm = get_fast_modinfo($courseid)->cms[$activityid];
+    $modinfo = get_fast_modinfo($courseid);
+    if (!isset($modinfo->cms[$activityid]) || !isset(report::GRADABLES[$modinfo->cms[$activityid]->modname])) {
+        throw new moodle_exception('invalidcoursemodule', 'error');
+    }
+    $cm = $modinfo->cms[$activityid];
     $activityname = format_string($cm->name, true, ['context' => $context]);
-    $displayfeedback = report::GRADABLES[$cm->modname]['showfeedback'] ?? false;
+    $displayfeedback = report::GRADABLES[$cm->modname]['showfeedback'];
 }
 
 $gpr = new grade_plugin_return(['type' => 'report', 'plugin' => 'grader',
@@ -99,10 +99,7 @@ $report = new report(
     null
 );
 
-// Initialise the flexible_table early so it can send download headers before any page HTML
-// is output. setup() is called inside init_table(); is_downloading() is usable immediately
-// after this call. On a download request, anything printed before this point would corrupt
-// the file — the empty($download) guard above ensures nothing is output before here.
+// Initialising flexible_table early so it can send download headers before any output.
 $table = $report->init_table($download);
 
 if (!$table->is_downloading()) {
@@ -113,6 +110,10 @@ if (!$table->is_downloading()) {
         $OUTPUT->help_icon('pluginname', 'gradereport_rubrics');
     print_grade_page_head($courseid, 'report', 'rubrics', $label, false, false, true, null, null, null, $actionbar);
     $mform->display();
+    // Showing group selector when needed, so user can switch between allowed groups.
+    if (!empty($report->group_selector)) {
+        echo $report->group_selector;
+    }
     grade_regrade_final_grades($courseid);
 }
 
