@@ -1,5 +1,26 @@
 # Changelog — gradereport_rubrics
 
+## 1.405.03 (2026071900)
+
+Security fix: rubric text shown in the on-screen report is now HTML-escaped. Sites should
+update — a rubric criterion description, level definition or grading remark containing HTML
+was previously rendered as markup in the browser of anyone viewing the report.
+
+- Escaped criterion descriptions in column headers, and level definitions and grading
+  remarks in report cells, on the HTML display path. These fields are stored as plain text
+  and `flexible_table` does not escape header or cell content. The CSV/Excel download path
+  was unaffected and is unchanged.
+- Escaped the student name, ID number and email cells on the same path, for consistency.
+- Validated the `activityid` request parameter against the course's activities and supported
+  activity types, and checked the grading-area lookup result before use. A crafted URL
+  naming a missing module, an unsupported activity type, or an activity with no rubric now
+  reports "No records found" instead of raising PHP warnings or a database exception.
+- Guarded the overall-grade lookup against an activity whose grade-item layout does not
+  match the assumed offset.
+- Removed three unused language strings (`config_scale`, `desc_scale`,
+  `criterion_label_break`).
+- Added PHPUnit regression coverage for the escaping and for invalid `activityid` handling.
+
 ## 1.405.02 (2026052802)
 
 Removed dead code; added PHPUnit test suite.

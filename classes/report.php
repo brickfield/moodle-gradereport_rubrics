@@ -170,10 +170,16 @@ class report extends grade_report {
                           ORDER BY crit.sortorder";
                 $criteria = $DB->get_records_sql($critsql, [$area->areaid]);
 
+                // Criterion descriptions are stored as plain text — core escapes them with s()
+                // wherever it displays them. get_string() does not escape its $a values and
+                // flexible_table does not escape header content, so the description must be
+                // escaped here for the HTML view. Download formats take the raw text.
+                $ishtml = ($download === '');
+
                 foreach ($criteria as $crit) {
                     $columns[] = 'criterion_' . $crit->id;
                     $headers[] = get_string('criterion_label', 'gradereport_rubrics', (object)[
-                        'crit_desc' => $crit->description,
+                        'crit_desc' => $ishtml ? s($crit->description) : $crit->description,
                         'max_score' => round($crit->max_score, 2),
                     ]);
                 }
@@ -236,6 +242,17 @@ class report extends grade_report {
             return;
         }
 
+        // The activityid arrives from the request, so it may name a module that is not in
+        // this course or is not a rubric-gradable activity type. Validate before it reaches
+        // the modinfo and GRADABLES lookups below.
+        $modinfo = get_fast_modinfo($this->courseid);
+        if (!isset($modinfo->cms[$activityid]) || !isset(self::GRADABLES[$modinfo->cms[$activityid]->modname])) {
+            if (!$table->is_downloading()) {
+                echo get_string('err_norecords', 'gradereport_rubrics');
+            }
+            return;
+        }
+
         // Find all enrolled users in the course.
         $coursecontext = context_course::instance($this->courseid);
         $users = get_enrolled_users($coursecontext, 'mod/assign:submit', 0, 'u.*', 'u.lastname');
@@ -252,6 +269,14 @@ class report extends grade_report {
                  LEFT JOIN {grading_areas} gra on gra.contextid = con.id
                      WHERE cm.course = ? AND cm.id = ? AND gra.activemethod = ?";
         $area = $DB->get_record_sql($areasql, [$this->courseid, $activityid, 'rubric']);
+
+        // An assign/forum can be gradable without having a rubric grading area defined.
+        if (!$area) {
+            if (!$table->is_downloading()) {
+                echo get_string('err_norecords', 'gradereport_rubrics');
+            }
+            return;
+        }
 
         // Find rubric criteria and levels for this activity.
         $sql = "SELECT crit.id as critid, crit.description, lev.id, lev.score, lev.criterionid, lev.definition, lev.definitionformat
@@ -283,7 +308,7 @@ class report extends grade_report {
         $records->close();
 
         // Map activity type to its DB table and field via GRADABLES.
-        $activity = get_fast_modinfo($this->courseid)->cms[$activityid];
+        $activity = $modinfo->cms[$activityid];
         $gradable = self::GRADABLES[$activity->modname];
 
         $userids = [];
@@ -328,7 +353,10 @@ class report extends grade_report {
             $fullname  = fullname($user);
             $userd     = isset($udataarray[$user->id]) ? $udataarray[$user->id] : [];
             $offset    = $gradable['itemoffset'];
-            $feedback  = $fullgrade->items[$offset]->grades[$user->id];
+            // The itemoffset assumes a fixed grade-item layout per activity type; an
+            // activity whose layout differs has no item at that offset, so do not assume
+            // one exists.
+            $feedback  = $fullgrade->items[$offset]->grades[$user->id] ?? null;
             $data[$user->id] = [$fullname, $user->email, $userd, $feedback, $user->idnumber];
         }
 
@@ -361,12 +389,14 @@ class report extends grade_report {
 
         foreach ($data as $key => $values) {
             $row = [];
-            $row[] = $values[0]; // Student name.
+            // Neither fullname() nor flexible_table escapes its output, so the identity
+            // columns are escaped here for the HTML view too.
+            $row[] = $downloading ? $values[0] : s($values[0]); // Student name.
             if ($this->displayidnumber) {
-                $row[] = $values[4];
+                $row[] = $downloading ? $values[4] : s($values[4]);
             }
             if ($this->displayemail) {
-                $row[] = $values[1];
+                $row[] = $downloading ? $values[1] : s($values[1]);
             }
 
             $thisgrade = get_string('nograde', 'gradereport_rubrics');
@@ -400,11 +430,13 @@ class report extends grade_report {
                         if ($this->displaylevel) {
                             $level = $rubricarray[$value->criterionid][$value->levelid]->definition ??
                                 get_string('notset', 'gradereport_rubrics');
-                            $critlevel = get_string('criterion_level', 'gradereport_rubrics', $level);
+                            // Level definitions and remarks are plain text in core (displayed via
+                            // s()), and flexible_table does not escape cell content, so escape here.
+                            $critlevel = get_string('criterion_level', 'gradereport_rubrics', s($level));
                             $cellcontent .= html_writer::div($critlevel, 'rubrics_level');
                         }
                         if ($this->displayremark) {
-                            $cellcontent .= $value->remark;
+                            $cellcontent .= s($value->remark);
                         }
                     }
 
@@ -437,7 +469,7 @@ class report extends grade_report {
                 $summaryarray['grade']['sum']   += $thisgrade;
                 $summaryarray['grade']['count']++;
             }
-            $row[] = $values[3]->str_grade;
+            $row[] = is_object($values[3]) ? $values[3]->str_grade : get_string('nograde', 'gradereport_rubrics');
             $table->add_data($row);
         }
 

@@ -77,9 +77,16 @@ if (empty($download) && ($formdata = $mform->get_data())) {
 }
 
 if ($activityid != 0) {
-    $cm = get_fast_modinfo($courseid)->cms[$activityid];
+    // The activityid can be supplied directly in the URL, bypassing the activity-select
+    // form, so confirm it names a module in this course of a type the report can handle
+    // before it is used for modinfo and GRADABLES lookups.
+    $modinfo = get_fast_modinfo($courseid);
+    if (!isset($modinfo->cms[$activityid]) || !isset(report::GRADABLES[$modinfo->cms[$activityid]->modname])) {
+        throw new moodle_exception('invalidcoursemodule', 'error');
+    }
+    $cm = $modinfo->cms[$activityid];
     $activityname = format_string($cm->name, true, ['context' => $context]);
-    $displayfeedback = report::GRADABLES[$cm->modname]['showfeedback'] ?? false;
+    $displayfeedback = report::GRADABLES[$cm->modname]['showfeedback'];
 }
 
 $gpr = new grade_plugin_return(['type' => 'report', 'plugin' => 'grader',
