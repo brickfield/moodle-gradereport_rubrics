@@ -102,6 +102,30 @@ class report extends grade_report {
         $this->displayfeedback = $displayfeedback;
 
         $this->coursegradeitem = grade_item::fetch_course_item($this->courseid);
+
+        // Handling course group mode.
+        $this->pbarurl = $this->get_base_url();
+        $this->setup_groups();
+    }
+
+    /**
+     * Build the report URL carrying the current activity and display options.
+     *
+     * Used as the flexible_table base URL and as the group selector's submit target,
+     * so both preserve the options the user already chose.
+     *
+     * @return moodle_url
+     */
+    protected function get_base_url(): moodle_url {
+        return new moodle_url('/grade/report/rubrics/index.php', [
+            'id'              => $this->courseid,
+            'activityid'      => $this->activityid,
+            'displaylevel'    => (int)$this->displaylevel,
+            'displayremark'   => (int)$this->displayremark,
+            'displaysummary'  => (int)$this->displaysummary,
+            'displayemail'    => (int)$this->displayemail,
+            'displayidnumber' => (int)$this->displayidnumber,
+        ]);
     }
 
     /**
@@ -155,10 +179,10 @@ class report extends grade_report {
         // This is a lightweight query — only criterion descriptions are needed for headers.
         if ($this->activityid != 0) {
             $areasql = "SELECT gra.id as areaid FROM {course_modules} cm
-                     LEFT JOIN {context} con ON cm.id = con.instanceid
+                     LEFT JOIN {context} con ON cm.id = con.instanceid AND con.contextlevel = ?
                      LEFT JOIN {grading_areas} gra ON gra.contextid = con.id
                          WHERE cm.course = ? AND cm.id = ? AND gra.activemethod = ?";
-            $area = $DB->get_record_sql($areasql, [$this->courseid, $this->activityid, 'rubric']);
+            $area = $DB->get_record_sql($areasql, [CONTEXT_MODULE, $this->courseid, $this->activityid, 'rubric']);
 
             if ($area) {
                 $critsql = "SELECT crit.id, crit.description, MAX(lev.score) AS max_score
@@ -170,10 +194,12 @@ class report extends grade_report {
                           ORDER BY crit.sortorder";
                 $criteria = $DB->get_records_sql($critsql, [$area->areaid]);
 
+                $ishtml = ($download === '');
+
                 foreach ($criteria as $crit) {
                     $columns[] = 'criterion_' . $crit->id;
                     $headers[] = get_string('criterion_label', 'gradereport_rubrics', (object)[
-                        'crit_desc' => $crit->description,
+                        'crit_desc' => $ishtml ? s($crit->description) : $crit->description,
                         'max_score' => round($crit->max_score, 2),
                     ]);
                 }
@@ -188,26 +214,14 @@ class report extends grade_report {
         $headers[] = get_string('grade', 'gradereport_rubrics');
 
         $table = new flexible_table('gradereport-rubrics-' . $this->activityid);
-        $table->define_baseurl(new moodle_url('/grade/report/rubrics/index.php', [
-            'id'              => $this->courseid,
-            'activityid'      => $this->activityid,
-            'displaylevel'    => (int)$this->displaylevel,
-            'displayremark'   => (int)$this->displayremark,
-            'displaysummary'  => (int)$this->displaysummary,
-            'displayemail'    => (int)$this->displayemail,
-            'displayidnumber' => (int)$this->displayidnumber,
-        ]));
+        $table->define_baseurl($this->get_base_url());
         $table->set_attribute('class', 'rubrics generaltable');
         $table->set_attribute('summary', get_string('pluginname', 'gradereport_rubrics') . ': ' . $this->activityname);
         $table->sortable(false);
         $table->collapsible(false);
         $table->show_download_buttons_at([TABLE_P_BOTTOM]);
 
-        // In Moodle 5.x, is_downloading() is the correct way to both mark the table as
-        // downloadable and signal the active download format. setup() no longer reads the
-        // download param from the request — is_downloading() must be called explicitly
-        // before setup() so that is_downloading() returns the format string correctly when
-        // index.php checks it to decide whether to suppress page output.
+        // Check status of page, is_downloading() or not.
         $tmpcourse = get_fast_modinfo($this->courseid)->get_course();
         $filename = clean_filename(($this->activityname ?: 'rubrics') . '_' . $tmpcourse->shortname);
         $table->is_downloading($download, $filename, get_string('pluginname', 'gradereport_rubrics'));
@@ -236,9 +250,27 @@ class report extends grade_report {
             return;
         }
 
-        // Find all enrolled users in the course.
+        // Validating activityid exists.
+        $modinfo = get_fast_modinfo($this->courseid);
+        if (!isset($modinfo->cms[$activityid]) || !isset(self::GRADABLES[$modinfo->cms[$activityid]->modname])) {
+            if (!$table->is_downloading()) {
+                echo get_string('err_norecords', 'gradereport_rubrics');
+            }
+            return;
+        }
+
+        // Restricting by group mode if needed.
+        if ($this->currentgroup == -2) {
+            if (!$table->is_downloading()) {
+                echo get_string('err_norecords', 'gradereport_rubrics');
+            }
+            return;
+        }
+        $groupid = ($this->currentgroup > 0) ? $this->currentgroup : 0;
+
+        // Find all enrolled users in the course, within the permitted group.
         $coursecontext = context_course::instance($this->courseid);
-        $users = get_enrolled_users($coursecontext, 'mod/assign:submit', 0, 'u.*', 'u.lastname');
+        $users = get_enrolled_users($coursecontext, 'mod/assign:submit', $groupid, 'u.*', 'u.lastname');
         if (!$users) {
             if (!$table->is_downloading()) {
                 echo get_string('err_norecords', 'gradereport_rubrics');
@@ -248,10 +280,18 @@ class report extends grade_report {
 
         // Find the grading area for this activity.
         $areasql = "SELECT gra.id as areaid FROM {course_modules} cm
-                 LEFT JOIN {context} con on cm.id=con.instanceid
-                 LEFT JOIN {grading_areas} gra on gra.contextid = con.id
+                 LEFT JOIN {context} con ON cm.id = con.instanceid AND con.contextlevel = ?
+                 LEFT JOIN {grading_areas} gra ON gra.contextid = con.id
                      WHERE cm.course = ? AND cm.id = ? AND gra.activemethod = ?";
-        $area = $DB->get_record_sql($areasql, [$this->courseid, $activityid, 'rubric']);
+        $area = $DB->get_record_sql($areasql, [CONTEXT_MODULE, $this->courseid, $activityid, 'rubric']);
+
+        // An assign/forum can be gradable without having a rubric grading area defined.
+        if (!$area) {
+            if (!$table->is_downloading()) {
+                echo get_string('err_norecords', 'gradereport_rubrics');
+            }
+            return;
+        }
 
         // Find rubric criteria and levels for this activity.
         $sql = "SELECT crit.id as critid, crit.description, lev.id, lev.score, lev.criterionid, lev.definition, lev.definitionformat
@@ -283,7 +323,7 @@ class report extends grade_report {
         $records->close();
 
         // Map activity type to its DB table and field via GRADABLES.
-        $activity = get_fast_modinfo($this->courseid)->cms[$activityid];
+        $activity = $modinfo->cms[$activityid];
         $gradable = self::GRADABLES[$activity->modname];
 
         $userids = [];
@@ -328,7 +368,8 @@ class report extends grade_report {
             $fullname  = fullname($user);
             $userd     = isset($udataarray[$user->id]) ? $udataarray[$user->id] : [];
             $offset    = $gradable['itemoffset'];
-            $feedback  = $fullgrade->items[$offset]->grades[$user->id];
+            // Checking itemoffset exists.
+            $feedback  = $fullgrade->items[$offset]->grades[$user->id] ?? null;
             $data[$user->id] = [$fullname, $user->email, $userd, $feedback, $user->idnumber];
         }
 
@@ -361,12 +402,12 @@ class report extends grade_report {
 
         foreach ($data as $key => $values) {
             $row = [];
-            $row[] = $values[0]; // Student name.
+            $row[] = $downloading ? $values[0] : s($values[0]); // Student name.
             if ($this->displayidnumber) {
-                $row[] = $values[4];
+                $row[] = $downloading ? $values[4] : s($values[4]);
             }
             if ($this->displayemail) {
-                $row[] = $values[1];
+                $row[] = $downloading ? $values[1] : s($values[1]);
             }
 
             $thisgrade = get_string('nograde', 'gradereport_rubrics');
@@ -400,11 +441,12 @@ class report extends grade_report {
                         if ($this->displaylevel) {
                             $level = $rubricarray[$value->criterionid][$value->levelid]->definition ??
                                 get_string('notset', 'gradereport_rubrics');
-                            $critlevel = get_string('criterion_level', 'gradereport_rubrics', $level);
+                            // Level definitions and remarks being displayed correctly here.
+                            $critlevel = get_string('criterion_level', 'gradereport_rubrics', s($level));
                             $cellcontent .= html_writer::div($critlevel, 'rubrics_level');
                         }
                         if ($this->displayremark) {
-                            $cellcontent .= $value->remark;
+                            $cellcontent .= s($value->remark);
                         }
                     }
 
@@ -437,7 +479,7 @@ class report extends grade_report {
                 $summaryarray['grade']['sum']   += $thisgrade;
                 $summaryarray['grade']['count']++;
             }
-            $row[] = $values[3]->str_grade;
+            $row[] = is_object($values[3]) ? $values[3]->str_grade : get_string('nograde', 'gradereport_rubrics');
             $table->add_data($row);
         }
 

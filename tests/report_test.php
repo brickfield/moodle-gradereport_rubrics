@@ -371,4 +371,307 @@ final class report_test extends \advanced_testcase {
         $nograde = get_string('nograde', 'gradereport_rubrics');
         $this->assertStringContainsString($nograde, $output, 'A nograde placeholder must appear when student has no results');
     }
+
+    /**
+     * Test that display_table() escapes level definitions, remarks and identity columns.
+     *
+     * Rubric level definitions and grading remarks are stored as plain text and are settable
+     * by teachers, while flexible_table does not escape cell content. Markup in those fields
+     * must therefore be escaped rather than rendered when the report is viewed on screen.
+     */
+    public function test_display_table_escapes_html_in_cells(): void {
+        $this->resetAfterTest();
+        global $CFG;
+
+        require_once($CFG->dirroot . '/grade/report/lib.php');
+
+        $payload = '<img src=x onerror=alert(1)>';
+
+        $course  = $this->getDataGenerator()->create_course();
+        $student = $this->getDataGenerator()->create_and_enrol($course, 'student', null, 'manual', 0, 0, ENROL_USER_ACTIVE);
+
+        // A level definition carrying a payload, as a rubric author could store it.
+        $rubricarray = [
+            99 => [
+                'crit_desc' => 'Test criterion',
+                'max_score' => 10.0,
+                101 => (object)[
+                    'id'               => 101,
+                    'criterionid'      => 99,
+                    'score'            => 10,
+                    'definition'       => $payload,
+                    'definitionformat' => FORMAT_HTML,
+                ],
+            ],
+        ];
+
+        // A filling carrying a payload in the remark, as a grader could store it.
+        $filling = (object)[
+            'criterionid' => 99,
+            'levelid'     => 101,
+            'remark'      => $payload,
+            'grade'       => 10,
+        ];
+
+        $gradeobj = (object)['str_grade' => '-', 'feedback' => ''];
+        $data = [
+            $student->id => [$payload, $payload . '@example.com', [$filling], $gradeobj, $payload],
+        ];
+
+        $context = \context_course::instance($course->id);
+        $gpr     = new \grade_plugin_return(['type' => 'report', 'plugin' => 'rubrics', 'courseid' => $course->id]);
+
+        // Display levels, remarks, id numbers and emails so every escaped cell is exercised.
+        $report = new report($course->id, $gpr, $context, 0, true, true, false, true, true, '', false);
+
+        $table = new \flexible_table('test-rubrics-escaping');
+        $table->define_baseurl(new \moodle_url('/'));
+        $table->define_columns(['student', 'idnumber', 'email', 'criterion_99', 'grade']);
+        $table->define_headers(['Student', 'ID Number', 'Email', 'Test criterion', 'Grade']);
+        $table->is_downloading('', 'test', 'Test');
+        $table->setup();
+
+        ob_start();
+        $report->display_table($table, $data, $rubricarray);
+        $output = ob_get_clean();
+
+        $this->assertStringNotContainsString($payload, $output, 'Raw markup must never reach the rendered report');
+        $this->assertStringContainsString(s($payload), $output, 'The payload must appear HTML-escaped instead');
+    }
+
+    /**
+     * Test that init_table() escapes rubric criterion descriptions used as column headers.
+     *
+     * Criterion descriptions are plain text set by rubric authors and are interpolated into
+     * a language string that get_string() does not escape, so init_table() must escape them
+     * before they become flexible_table header content.
+     */
+    public function test_init_table_escapes_criterion_description_header(): void {
+        $this->resetAfterTest();
+        global $CFG, $DB;
+
+        require_once($CFG->dirroot . '/grade/report/lib.php');
+
+        $payload = '<img src=x onerror=alert(1)>';
+
+        $course = $this->getDataGenerator()->create_course();
+        $assign = $this->getDataGenerator()->create_module('assign', ['course' => $course]);
+
+        $cm      = $DB->get_record('course_modules', ['instance' => $assign->id, 'course' => $course->id]);
+        $modctx  = $DB->get_record('context', ['instanceid' => $cm->id, 'contextlevel' => CONTEXT_MODULE]);
+
+        $areaid = $DB->insert_record('grading_areas', (object)[
+            'contextid'    => $modctx->id,
+            'component'    => 'mod_assign',
+            'areaname'     => 'submissions',
+            'activemethod' => 'rubric',
+        ]);
+        $definitionid = $DB->insert_record('grading_definitions', (object)[
+            'areaid'       => $areaid,
+            'method'       => 'rubric',
+            'name'         => 'Test rubric',
+            'timecreated'  => time(),
+            'timemodified' => time(),
+            'usercreated'  => 2,
+            'usermodified' => 2,
+        ]);
+        $critid = $DB->insert_record('gradingform_rubric_criteria', (object)[
+            'definitionid'      => $definitionid,
+            'sortorder'         => 1,
+            'description'       => $payload,
+            'descriptionformat' => FORMAT_HTML,
+        ]);
+        $DB->insert_record('gradingform_rubric_levels', (object)[
+            'criterionid'      => $critid,
+            'score'            => 10,
+            'definition'       => 'Good',
+            'definitionformat' => FORMAT_HTML,
+        ]);
+
+        $context = \context_course::instance($course->id);
+        $gpr     = new \grade_plugin_return(['type' => 'report', 'plugin' => 'rubrics', 'courseid' => $course->id]);
+        $report  = new report($course->id, $gpr, $context, $cm->id, true, true, false, false, false, 'Test assign', false);
+
+        $table   = $report->init_table('');
+        $headers = implode(' ', $table->headers);
+
+        $this->assertStringNotContainsString($payload, $headers, 'Raw markup must never reach a table header');
+        $this->assertStringContainsString(s($payload), $headers, 'The criterion description must appear HTML-escaped');
+    }
+
+    /**
+     * Build a separate-groups course with two groups, one student in each.
+     *
+     * @return array [course, group1, group2, student1, student2]
+     */
+    private function setup_separate_groups_course(): array {
+        $course = $this->getDataGenerator()->create_course([
+            'groupmode'      => SEPARATEGROUPS,
+            'groupmodeforce' => 1,
+        ]);
+
+        $group1 = $this->getDataGenerator()->create_group(['courseid' => $course->id]);
+        $group2 = $this->getDataGenerator()->create_group(['courseid' => $course->id]);
+
+        $student1 = $this->getDataGenerator()->create_and_enrol($course, 'student');
+        $student2 = $this->getDataGenerator()->create_and_enrol($course, 'student');
+
+        $this->getDataGenerator()->create_group_member(['groupid' => $group1->id, 'userid' => $student1->id]);
+        $this->getDataGenerator()->create_group_member(['groupid' => $group2->id, 'userid' => $student2->id]);
+
+        return [$course, $group1, $group2, $student1, $student2];
+    }
+
+    /**
+     * Build a report instance for the current user against a course.
+     *
+     * @param stdClass $course
+     * @param int $activityid
+     * @return report
+     */
+    private function make_report($course, int $activityid = 0): report {
+        global $CFG;
+
+        require_once($CFG->dirroot . '/grade/report/lib.php');
+
+        $context = \context_course::instance($course->id);
+        $gpr     = new \grade_plugin_return(['type' => 'report', 'plugin' => 'rubrics', 'courseid' => $course->id]);
+
+        return new report($course->id, $gpr, $context, $activityid, true, true, false, false, false, '', false);
+    }
+
+    /**
+     * Test that a non-editing teacher in a separate-groups course is scoped to their group.
+     *
+     * The report grants rubrics:view to the non-editing teacher archetype, which does not
+     * hold moodle/site:accessallgroups, so it must not disclose students of other groups.
+     */
+    public function test_separate_groups_restricts_roster_to_viewers_group(): void {
+        $this->resetAfterTest();
+
+        [$course, $group1, , $student1, $student2] = $this->setup_separate_groups_course();
+
+        // A non-editing teacher, a member of group 1 only.
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'teacher');
+        $this->getDataGenerator()->create_group_member(['groupid' => $group1->id, 'userid' => $teacher->id]);
+        $this->setUser($teacher);
+
+        $report = $this->make_report($course);
+
+        $this->assertEquals($group1->id, $report->currentgroup, 'Viewer must be scoped to their own group');
+
+        // The roster the report builds must contain only the viewer's group.
+        $context = \context_course::instance($course->id);
+        $users   = get_enrolled_users($context, 'mod/assign:submit', $report->currentgroup, 'u.*', 'u.lastname');
+        $userids = array_keys($users);
+
+        $this->assertContains(intval($student1->id), $userids, 'Own-group student must be visible');
+        $this->assertNotContains(intval($student2->id), $userids, 'Other-group student must not be visible');
+    }
+
+    /**
+     * Test that a viewer with accessallgroups still sees every group.
+     */
+    public function test_accessallgroups_viewer_is_not_restricted(): void {
+        $this->resetAfterTest();
+
+        [$course, , , $student1, $student2] = $this->setup_separate_groups_course();
+
+        // An editing teacher holds moodle/site:accessallgroups by default.
+        $editingteacher = $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+        $this->setUser($editingteacher);
+
+        $report = $this->make_report($course);
+
+        // Use assertSame, not assertEquals: an unset currentgroup is null, and null == 0
+        // is true under loose comparison, which would let this pass without setup_groups().
+        $this->assertSame(0, $report->currentgroup, 'A viewer with accessallgroups must not be group-restricted');
+
+        $context = \context_course::instance($course->id);
+        $users   = get_enrolled_users($context, 'mod/assign:submit', 0, 'u.*', 'u.lastname');
+        $userids = array_keys($users);
+
+        $this->assertContains(intval($student1->id), $userids, 'Group 1 student must be visible');
+        $this->assertContains(intval($student2->id), $userids, 'Group 2 student must be visible');
+    }
+
+    /**
+     * Test that a viewer belonging to no group in a separate-groups course sees nothing.
+     *
+     * setup_groups() flags this case with currentgroup === -2; the report must report no
+     * records rather than falling back to the whole course.
+     */
+    public function test_separate_groups_without_membership_reports_no_records(): void {
+        $this->resetAfterTest();
+        global $DB;
+
+        [$course] = $this->setup_separate_groups_course();
+
+        // A non-editing teacher who is in no group at all.
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'teacher');
+        $this->setUser($teacher);
+
+        $assign = $this->getDataGenerator()->create_module('assign', ['course' => $course]);
+        $cm     = $DB->get_record('course_modules', ['instance' => $assign->id, 'course' => $course->id]);
+
+        $report = $this->make_report($course, $cm->id);
+
+        $this->assertEquals(-2, $report->currentgroup, 'A group-less viewer must be flagged as having no access');
+
+        $table = new \flexible_table('test-rubrics-nogroup');
+        $table->define_baseurl(new \moodle_url('/'));
+        $table->define_columns(['student', 'grade']);
+        $table->define_headers(['Student', 'Grade']);
+        $table->is_downloading('', 'test', 'Test');
+        $table->setup();
+
+        ob_start();
+        $report->show($table);
+        $output = ob_get_clean();
+
+        $norecords = get_string('err_norecords', 'gradereport_rubrics');
+        $this->assertStringContainsString($norecords, $output, 'A group-less viewer must see no records');
+    }
+
+    /**
+     * Test that show() degrades gracefully when activityid does not name a usable activity.
+     *
+     * activityid comes straight from the request, so it can name a module that is absent
+     * from the course or of a type the report does not support. Neither must raise an error.
+     */
+    public function test_show_handles_invalid_activityid(): void {
+        $this->resetAfterTest();
+        global $CFG;
+
+        require_once($CFG->dirroot . '/grade/report/lib.php');
+
+        $course = $this->getDataGenerator()->create_course();
+        $this->getDataGenerator()->create_and_enrol($course, 'student');
+
+        // A quiz is a real module in the course but is not a rubric-gradable type.
+        $quiz = $this->getDataGenerator()->create_module('quiz', ['course' => $course]);
+        $quizcm = get_coursemodule_from_instance('quiz', $quiz->id, $course->id);
+
+        $context = \context_course::instance($course->id);
+        $gpr     = new \grade_plugin_return(['type' => 'report', 'plugin' => 'rubrics', 'courseid' => $course->id]);
+
+        $norecords = get_string('err_norecords', 'gradereport_rubrics');
+
+        foreach ([$quizcm->id, 999999] as $activityid) {
+            $report = new report($course->id, $gpr, $context, $activityid, true, true, false, false, false, '', false);
+
+            $table = new \flexible_table('test-rubrics-invalid-' . $activityid);
+            $table->define_baseurl(new \moodle_url('/'));
+            $table->define_columns(['student', 'grade']);
+            $table->define_headers(['Student', 'Grade']);
+            $table->is_downloading('', 'test', 'Test');
+            $table->setup();
+
+            ob_start();
+            $report->show($table);
+            $output = ob_get_clean();
+
+            $this->assertStringContainsString($norecords, $output, "activityid $activityid must report no records");
+        }
+    }
 }

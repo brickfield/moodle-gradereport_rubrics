@@ -35,12 +35,12 @@ class report_rubrics_select_form extends moodleform {
     public function definition() {
         global $DB;
 
-        $sql = "SELECT cm.id, cm.course, con.id AS con_id, con.path, gra.id AS gra_id
+        $sql = "SELECT cm.id, cm.course
                   FROM {course_modules} cm
-                  JOIN {context} con ON cm.id=con.instanceid
+                  JOIN {context} con ON cm.id = con.instanceid AND con.contextlevel = ?
                   JOIN {grading_areas} gra ON gra.contextid = con.id
                  WHERE cm.course = ? AND gra.activemethod = ?";
-        $activities = $DB->get_records_sql($sql, [$this->_customdata['courseid'], 'rubric']);
+        $activities = $DB->get_records_sql($sql, [CONTEXT_MODULE, $this->_customdata['courseid'], 'rubric']);
 
         $formarray = [0 => get_string('selectactivity', 'gradereport_rubrics')];
 
